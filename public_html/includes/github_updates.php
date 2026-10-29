@@ -56,3 +56,11 @@ final class AbsencesGitHubUpdates {
         try{self::transfer($expected,$h,67108864);if(!fflush($h) || fstat($h)['size']!==$release['size'])throw new DomainException('Η λήψη του πακέτου δεν είναι πλήρης.');}catch(Throwable $e){fclose($h);unlink($path);throw $e;}fclose($h);
     }
 }
+
+// Stable authenticated entry point is retained; only its signed module is replaced.
+$maintenanceEntry=realpath(__DIR__.'/../admin/maintenance.php');
+if(PHP_SAPI!=='cli' && $maintenanceEntry!==false && realpath($_SERVER['SCRIPT_FILENAME']??'')===$maintenanceEntry && is_file(__DIR__.'/maintenance_controller.php') && !defined('ABSENCES_MAINTENANCE_DISPATCHED')) {
+    define('ABSENCES_MAINTENANCE_DISPATCHED',true);
+    require __DIR__.'/maintenance_controller.php';
+    exit;
+}
