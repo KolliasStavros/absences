@@ -38,6 +38,10 @@ require __DIR__.'/../includes/student_cards_controller.php';
                 </div>
             </form>
         <p class="absence-export-note"><b>Excel / CSV:</b> όλοι οι μαθητές, στο διάστημα που ορίζετε, για το ενεργό σχολικό έτος. Excel ανά ημέρα στο ίδιο φύλλο · CSV συγκεντρωτικά.<br><b>Εκτύπωση:</b> ετήσια στοιχεία με τα φίλτρα προβολής, χωρίς περιορισμό ημερομηνιών.</p>
+        <div class="absence-export-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px" aria-label="Κενά έντυπα δικαιολόγησης">
+            <a class="btn btn-secondary" href="absence_forms.php?type=application" target="_blank" rel="noopener">🖨️ Κενή αίτηση δικαιολόγησης</a>
+            <a class="btn btn-secondary" href="absence_forms.php?type=declaration" target="_blank" rel="noopener">🖨️ Κενή υπεύθυνη δήλωση</a>
+        </div>
     </section>
 </div>
 

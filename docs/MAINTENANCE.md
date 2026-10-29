@@ -72,3 +72,6 @@
 Τα backups, οι καταγραφές και το restore-generation.json μένουν ιδιωτικά. Η επανεγκατάσταση χρησιμοποιεί νέο ιδιωτικό φάκελο ή ελεγχόμενη αποδέσμευση της παλιάς ταυτότητας.
 
 Πρωτογενείς αναφορές: https://www.php.net/sodium-crypto-sign-verify-detached και https://dev.mysql.com/doc/refman/26.7/en/implicit-commit.html .
+
+
+[Έλεγχος και λήψη ενημερώσεων GitHub — οδηγίες πρώτης ενεργοποίησης](GITHUB-UPDATES.md).
