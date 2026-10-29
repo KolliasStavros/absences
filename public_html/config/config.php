@@ -84,6 +84,10 @@ set_exception_handler(function(Throwable $e) {
     }
 });
 
+// Store sessions outside the public site, independently of hosting defaults.
+require_once __DIR__.'/../includes/session_storage.php';
+prepareAbsencesSessionStorage(dirname(__DIR__));
+
 // Secure Session Cookie Settings
 if (session_status() === PHP_SESSION_NONE) {
     $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
