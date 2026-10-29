@@ -1,0 +1,1549 @@
+/* Modern Design System for School Absences Web Application */
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --success: #10b981;
+    --success-light: #ecfdf5;
+    --danger: #ef4444;
+    --danger-light: #fef2f2;
+    --warning: #f59e0b;
+    --warning-light: #fffbeb;
+    --info: #0284c7;
+    --info-light: #f0f9ff;
+    
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #475569;
+    --border: #cbd5e1;
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+/* Auth Screens Layout */
+.auth-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: radial-gradient(circle at 10% 20%, rgb(241, 245, 249) 0%, rgb(226, 232, 240) 90.1%);
+}
+
+.auth-card {
+    background: var(--bg-card);
+    width: 100%;
+    max-width: 440px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 36px;
+    border: 1px solid var(--border);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.school-badge {
+    font-size: 42px;
+    margin-bottom: 12px;
+    display: inline-block;
+}
+
+.auth-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+}
+
+.auth-header p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 5px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background-color: #fff;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+/* Clearer labels and field edges in daylight; dark theme keeps its own palette. */
+:root:not([data-theme="dark"]) { color-scheme:light; }
+:root:not([data-theme="dark"]) .form-control:not(:focus) { border-color:#7c8da3; }
+:root:not([data-theme="dark"]) .form-control::placeholder { color:#64748b; opacity:1; }
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.btn-secondary:hover {
+    background: #cbd5e1;
+}
+
+.btn-success {
+    background: var(--success);
+    color: #fff;
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-warning {
+    background: #f59e0b;
+    color: #ffffff;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    color: #ffffff;
+}
+
+/* Bulk Email Button - Vibrant High-Contrast Accent */
+.btn-bulk-email-custom {
+    background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    padding: 7px 15px !important;
+    border-radius: 8px !important;
+    border: 1px solid #c2410c !important;
+    box-shadow: 0 3px 10px rgba(234, 88, 12, 0.35) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-bulk-email-custom:hover {
+    background: linear-gradient(135deg, #fbbf24 0%, #c2410c 100%) !important;
+    transform: translateY(-1.5px) !important;
+    box-shadow: 0 5px 15px rgba(234, 88, 12, 0.5) !important;
+}
+
+.btn-bulk-email-custom:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 5px rgba(234, 88, 12, 0.3) !important;
+}
+
+.bulk-email-counter-badge {
+    background: rgba(0, 0, 0, 0.25);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 1px 7px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    line-height: 1.3;
+}
+
+/* Bulk SMS Button - Vibrant Modern Cyan/Blue */
+.btn-bulk-sms-custom {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    padding: 7px 15px !important;
+    border-radius: 8px !important;
+    border: 1px solid #075985 !important;
+    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-bulk-sms-custom:hover {
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%) !important;
+    transform: translateY(-1.5px) !important;
+    box-shadow: 0 5px 15px rgba(2, 132, 199, 0.5) !important;
+}
+
+.btn-bulk-sms-custom:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 5px rgba(2, 132, 199, 0.3) !important;
+}
+
+.bulk-sms-counter-badge {
+    background: rgba(0, 0, 0, 0.25);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 1px 7px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    line-height: 1.3;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
+/* Alerts */
+.alert {
+    padding: 11px 15px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    margin-bottom: 18px;
+    line-height: 1.4;
+}
+
+.alert-danger {
+    background: var(--danger-light);
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.alert-success {
+    background: var(--success-light);
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.alert-info {
+    background: var(--info-light);
+    color: #075985;
+    border: 1px solid #bae6fd;
+}
+
+/* App Layout & Navbar */
+.app-navbar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.nav-brand span {
+    font-size: 22px;
+}
+
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.user-badge {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.role-tag {
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-left: 5px;
+}
+
+.main-container {
+    max-width: 1380px;
+    width: 96%;
+    margin: 20px auto;
+    padding: 0 10px;
+}
+
+/* Modern Segmented Navigation Tabs (No Scrollbar, Wraps Cleanly) */
+.nav-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: #f1f5f9;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    margin-bottom: 22px;
+    border: 1px solid var(--border);
+}
+
+.nav-tab {
+    padding: 8px 14px;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nav-tab:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.nav-tab.active {
+    color: var(--primary);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    font-weight: 700;
+}
+
+/* Navigation Dropdown Engine */
+.nav-dropdown {
+    position: relative;
+    display: inline-flex;
+}
+
+.nav-dropdown-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13.5px;
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    margin-left: 2px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    color: var(--text-muted);
+}
+
+.nav-dropdown:hover .dropdown-arrow,
+.nav-dropdown:focus-within .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.nav-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 250px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    padding: 6px;
+    z-index: 1050;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* Invisible hover bridge */
+.nav-dropdown-menu::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 0;
+    right: 0;
+    height: 8px;
+}
+
+.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown:focus-within .nav-dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.nav-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--text-main);
+    font-size: 13px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-dropdown-item:hover {
+    background: #f1f5f9;
+    color: var(--primary);
+}
+
+.nav-dropdown-item.active {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.nav-dropdown-item .item-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.nav-dropdown-item .item-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.nav-dropdown-item .item-text strong {
+    font-size: 13px;
+}
+
+.nav-dropdown-item .item-text small {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 6px;
+}
+
+/* Nav Tab Teacher CTA */
+.nav-tab-teacher {
+    background: #eef2ff;
+    color: var(--primary);
+    border: 1px solid #c7d2fe;
+    font-weight: 600;
+}
+
+.nav-tab-teacher:hover {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    .nav-tab-teacher {
+        margin-left: 0 !important;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Cards & Grid */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Responsive Tables (No Horizontal Scrollbar on Standard Screens) */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.table-responsive::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: auto;
+}
+
+.table th {
+    text-align: left;
+    padding: 10px 10px;
+    background: #f8fafc;
+    border-bottom: 1.5px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.table tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Custom Table (used in Student Cards and Modals) */
+.table-custom {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.table-custom th {
+    text-align: left;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border-bottom: 1.5px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.table-custom td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.table-custom tbody tr:hover td {
+    background-color: #f8fafc;
+}
+
+.table-custom th:first-child,
+.table-custom td:first-child {
+    padding-left: 20px;
+}
+
+.table-custom th:last-child,
+.table-custom td:last-child {
+    padding-right: 22px;
+}
+
+/* Student Cards (Teacher Screen) */
+.student-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.student-card {
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s ease;
+}
+
+.student-card:active {
+    transform: scale(0.98);
+}
+
+.student-card.present {
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.student-card.present .status-pill {
+    background: #10b981;
+    color: #fff;
+}
+
+.student-card.absent {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.student-card.absent .status-pill {
+    background: #ef4444;
+    color: #fff;
+}
+
+.student-card.expulsion {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.student-card.expulsion .status-pill {
+    background: #d97706;
+    color: #fff;
+}
+
+.student-card.justified {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.student-card.justified .status-pill {
+    background: #2563eb;
+    color: #fff;
+}
+
+.student-info .student-am {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.student-info .student-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.status-pill {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    transition: all 0.2s ease;
+}
+
+/* Floating Save Action Bar for Teachers */
+.floating-bar {
+    position: sticky;
+    bottom: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-lg);
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 26px;
+    z-index: 50;
+}
+
+@media (max-width: 640px) {
+    .floating-bar {
+        flex-direction: column;
+        gap: 10px;
+        bottom: 10px;
+    }
+    .floating-bar .btn {
+        width: 100%;
+    }
+}
+
+/* ==========================================================================
+   Modals & Popups
+   ========================================================================== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    color: var(--text-main);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    position: relative;
+    max-width: 560px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ==========================================================================
+   Dark Mode Theme System
+   ========================================================================== */
+[data-theme="dark"] {
+    --bg-main: #0b1120;
+    --bg-card: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --primary-light: #312e81;
+    --success-light: #064e3b;
+    --danger-light: #7f1d1d;
+    --warning-light: #78350f;
+    --info-light: #0c4a6e;
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 10px 20px -3px rgb(0 0 0 / 0.6);
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .auth-body {
+    background: radial-gradient(circle at 10% 20%, #0f172a 0%, #020617 90.1%);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="time"],
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-color: #334155;
+}
+
+[data-theme="dark"] .form-control:focus {
+    background-color: #0f172a;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+.bell-schedule-box {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+}
+.bell-time-input {
+    text-align: center;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+.btn-bulk-email-custom {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700 !important;
+    box-shadow: 0 3px 8px rgba(217, 119, 6, 0.4) !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 7px 15px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+}
+.btn-bulk-email-custom:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    box-shadow: 0 5px 12px rgba(217, 119, 6, 0.55) !important;
+    transform: translateY(-1px) !important;
+}
+
+[data-theme="dark"] .app-navbar {
+    background: #1e293b;
+    border-bottom-color: #334155;
+}
+
+[data-theme="dark"] .nav-tab {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .nav-tab:hover {
+    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .nav-tab.active {
+    color: #818cf8;
+    background: #312e81;
+}
+
+[data-theme="dark"] .table-custom th {
+    background-color: #1e293b;
+    color: #94a3b8;
+    border-bottom-color: #334155;
+}
+
+[data-theme="dark"] .table-custom td {
+    border-bottom-color: #334155;
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .table-custom tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .modal {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+    border-color: #334155;
+}
+
+[data-theme="dark"] .floating-bar {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: #334155;
+}
+
+[data-theme="dark"] .student-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+[data-theme="dark"] .student-card.absent {
+    background: #361014;
+    border-color: #991b1b;
+}
+
+[data-theme="dark"] .student-card.expulsion {
+    background: #382006;
+    border-color: #b45309;
+}
+
+[data-theme="dark"] .student-card.justified {
+    background: #062e24;
+    border-color: #065f46;
+}
+
+[data-theme="dark"] .btn-secondary {
+    background: #334155;
+    color: #f8fafc;
+    border-color: #475569;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background: #475569;
+}
+
+[data-theme="dark"] .badge-gray {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .badge-success {
+    background: #064e3b;
+    color: #6ee7b7;
+    border-color: #047857 !important;
+}
+
+[data-theme="dark"] .badge-warning {
+    background: #78350f;
+    color: #fde68a;
+}
+
+[data-theme="dark"] .btn-bulk-email-custom {
+    background: linear-gradient(135deg, #d97706 0%, #9a3412 100%) !important;
+    border-color: #ea580c !important;
+    box-shadow: 0 3px 12px rgba(234, 88, 12, 0.45) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-bulk-email-custom:hover {
+    background: linear-gradient(135deg, #f59e0b 0%, #c2410c 100%) !important;
+    box-shadow: 0 5px 16px rgba(245, 158, 11, 0.55) !important;
+}
+
+[data-theme="dark"] .btn-bulk-sms-custom {
+    background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 3px 12px rgba(56, 189, 248, 0.35) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-bulk-sms-custom:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #075985 100%) !important;
+    box-shadow: 0 5px 16px rgba(56, 189, 248, 0.5) !important;
+}
+
+[data-theme="dark"] .badge-danger {
+    background: #7f1d1d;
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .badge-info {
+    background: #0c4a6e;
+    color: #7dd3fc;
+}
+
+[data-theme="dark"] .nav-dropdown-menu {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .nav-dropdown-item:hover {
+    background: #334155;
+    color: #818cf8;
+}
+
+[data-theme="dark"] .nav-dropdown-item.active {
+    background: rgba(79, 70, 229, 0.25);
+    color: #a5b4fc;
+}
+
+[data-theme="dark"] .dropdown-divider {
+    background: #334155;
+}
+
+[data-theme="dark"] .nav-tab-teacher {
+    background: #1e1b4b;
+    color: #a5b4fc;
+    border-color: #3730a3;
+}
+
+[data-theme="dark"] .nav-tab-teacher:hover {
+    background: #4f46e5;
+    color: #ffffff;
+    border-color: #4f46e5;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--border);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Print Styles for Official School Reports
+   ========================================================================== */
+@media print {
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 12pt;
+    }
+
+    .app-navbar,
+    .nav-tabs,
+    .filter-card,
+    .floating-bar,
+    .btn,
+    .no-print,
+    footer {
+        display: none !important;
+    }
+
+    .main-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    .print-only {
+        display: block !important;
+    }
+
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    th, td {
+        border: 1px solid #333 !important;
+        padding: 6px 8px !important;
+        color: #000 !important;
+    }
+
+    th {
+        background: #f0f0f0 !important;
+    }
+}
+
+.print-only {
+    display: none;
+}
+
+/* UI-01A: admin navigation and attendance on small screens only. */
+.mobile-nav-toggle, .mobile-account, .mobile-student-am { display: none; }
+.mobile-nav-toggle { background: transparent; color: var(--text-main); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 18px; align-items: center; justify-content: center; }
+@media screen and (max-width: 768px) {
+    .attendance-page .print-only { display: none !important; }
+    .admin-layout .app-navbar { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 40px); grid-template-rows:auto auto; padding: 8px; gap: 4px; }
+    .admin-layout .nav-brand { grid-column:1; grid-row:1; }
+    .admin-layout .nav-user > form { display:none !important; }
+    .admin-layout .nav-user > .mobile-nav-toggle { grid-column:2; grid-row:1 / 3; }
+    .admin-layout .nav-user > .mobile-account { grid-column:3; grid-row:1 / 3; }
+    .admin-layout .nav-user > .theme-toggle-btn { grid-column:4; grid-row:1 / 3; }
+    .admin-layout .nav-brand { flex: 1; min-width: 0; font-size: 13px; gap: 4px; }
+    .admin-layout .nav-brand > div { min-width: 0; }
+    .admin-layout .nav-brand > div > div:first-child > span:first-child { font-size: 13px; }
+    .admin-layout .nav-brand > div > div:last-child,
+    .admin-layout .nav-brand .badge,
+    .admin-layout .nav-user > .user-badge,
+    .admin-layout .nav-user > a[href="../logout.php"],
+    .admin-layout .theme-toggle-btn span { display: none; }
+    .admin-layout .nav-user { display: contents; }
+    .admin-layout .nav-user > .badge-success { grid-column:1; grid-row:2; justify-self:start; max-width:100%; justify-content:center; white-space:nowrap; font-size:11px !important; padding:3px 6px !important; }
+    .admin-layout .theme-toggle-btn, .mobile-account summary, .mobile-nav-toggle { min-width: 40px; min-height: 40px; padding: 6px; }
+    .admin-layout .mobile-nav-toggle { display: inline-flex; }
+    .mobile-account { display: block; position: relative; }
+    .mobile-account summary { list-style: none; cursor: pointer; border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+    .mobile-account summary::-webkit-details-marker { display: none; }
+    .mobile-account-panel { position: absolute; right: 0; top: calc(100% + 6px); width: min(260px, calc(100vw - 24px)); padding: 12px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); z-index: 1100; overflow-wrap: anywhere; }
+    .mobile-account-panel > * { display: block; margin-bottom: 6px; }
+    .mobile-account-panel a { padding: 10px 0; color: var(--text-main); }
+    .admin-layout .main-container { width: 100%; padding: 0 8px; margin: 12px auto; }
+    .admin-layout #adminNavigation { display: none; }
+    .admin-layout #adminNavigation.mobile-open { display: flex; flex-direction: column; gap: 4px; }
+    .admin-layout .nav-tab { min-height: 44px; white-space: normal; }
+    .admin-layout .nav-dropdown { display: block; }
+    .admin-layout .nav-dropdown-btn { width: 100%; justify-content: space-between; }
+    .admin-layout .nav-dropdown .nav-dropdown-menu { display: none; position: static; min-width: 0; opacity: 1; visibility: visible; transform: none; box-shadow: none; margin: 4px 0; }
+    .admin-layout .nav-dropdown.dropdown-open .nav-dropdown-menu { display: flex; }
+    .admin-layout .nav-dropdown-item { min-height: 44px; }
+    .admin-layout .nav-dropdown-menu::before { display: none; }
+    .admin-layout .nav-tab-teacher { margin-left: 0 !important; }
+
+    .attendance-page .content-header { gap: 8px !important; margin-bottom: 12px !important; }
+    .attendance-page .content-header h1 { font-size: 17px !important; }
+    .attendance-page .content-header p { font-size: 11px !important; overflow-wrap: anywhere; }
+    .attendance-page .mobile-action-label { display: none; }
+    .attendance-page .content-header button { min-width: 44px; min-height: 44px; }
+    .attendance-page .attendance-filters { padding: 10px !important; }
+    .attendance-page #filterForm { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px !important; }
+    .attendance-page #filterForm > div { min-width: 0 !important; }
+    .attendance-page #filterForm .form-control { min-width: 0; min-height: 40px; padding: 6px !important; }
+    .attendance-page .attendance-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-bottom: 12px !important; }
+    .attendance-page .attendance-kpis .card { padding: 10px !important; margin-bottom: 0; min-width: 0; background: var(--bg-card) !important; }
+    .attendance-page .attendance-kpis .card > div:first-child { font-size: 10px !important; overflow-wrap: anywhere; }
+    .attendance-page .attendance-kpis .card > div:nth-child(2) { font-size: 19px !important; }
+    .attendance-page .main-container > .card { padding: 10px; background: var(--bg-card) !important; }
+    .attendance-page #bulkEmailForm > div { padding: 8px !important; background: var(--bg-card) !important; }
+    .attendance-page #bulkEmailForm > div > div { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+    .attendance-page #bulkEmailForm > div > button { white-space: normal; min-height: 44px; }
+    .attendance-page .inline-mode-selector { display: flex !important; flex-wrap: wrap; width: 100%; background: var(--bg-card) !important; }
+    .attendance-page .btn-tool-mode { flex: 1 1 40%; min-height: 44px; padding: 5px 7px; font-size: 11px; color: var(--text-main); }
+    .attendance-page .attendance-table,
+    .attendance-page .attendance-table tbody { display: block; width: 100%; }
+    .attendance-page .attendance-table thead,
+    .attendance-page .attendance-table thead tr { display: block; }
+    .attendance-page .attendance-table thead th { display: none; }
+    .attendance-page .attendance-table thead th:first-child { display: flex; align-items: center; gap: 8px; width: 100% !important; min-height: 44px; padding: 4px !important; }
+    .attendance-page .attendance-table thead th:first-child::after { content: 'Επιλογή όλων'; font-size: 11px; }
+    .attendance-page #masterCheckbox { width: 24px; height: 24px; }
+    .attendance-page .student-attendance-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 42px; gap: 4px; padding: 10px 0; }
+    .attendance-page .student-attendance-row > td { display: block; min-width: 0; padding: 4px !important; overflow-wrap: anywhere; }
+    .attendance-page .student-attendance-row > td:nth-child(2),
+    .attendance-page .student-attendance-row > td:nth-child(6) { display: none; }
+    .attendance-page .student-attendance-row > td:nth-child(1) { grid-column: 1; grid-row: 1; }
+    .attendance-page .student-attendance-row > td:nth-child(3) { grid-column: 2; grid-row: 1; }
+    .attendance-page .student-attendance-row > td:nth-child(5) { grid-column: 3; grid-row: 1; }
+    .attendance-page .student-attendance-row > td:nth-child(4) { grid-column: 1 / -1; grid-row: 2; overflow-x: auto; scrollbar-width: thin; }
+    .attendance-page .student-attendance-row > td:nth-child(7) { grid-column: 1 / 3; grid-row: 3; text-align: left !important; }
+    .attendance-page .student-attendance-row > td:nth-child(8) { grid-column: 3; grid-row: 3; }
+    .attendance-page .student-attendance-row > td:nth-child(3) > div:first-child > span { display: none; }
+    .attendance-page .mobile-student-am { display: block; color: var(--text-muted); font-size: 10px; }
+    .attendance-page .student-attendance-row > td:nth-child(5)::before { content: 'Ώρες'; display: block; color: var(--text-muted); font-size: 10px; font-weight: 400; }
+    .attendance-page .inline-hours-grid { width: max-content; max-width: none; background: var(--bg-card); }
+    .attendance-page .btn-hour-pill { width: 40px; height: 44px; flex-shrink: 0; font-size: 14px; }
+    .attendance-page .btn-hour-all { min-height: 44px; flex-shrink: 0; }
+    .attendance-page .student-checkbox { width: 24px; height: 24px; }
+    .attendance-page [id^="email-cell-"] button { min-width: 44px; min-height: 44px; }
+    .attendance-page [id^="action-cell-"] button { min-width: 40px; min-height: 44px; font-size: 0 !important; }
+    .attendance-page [id^="action-cell-"] button::after { content: '✏️'; font-size: 18px; }
+    .attendance-page [id$="Modal"] > div { min-width: 0; max-width: 100% !important; padding: 14px !important; background: var(--bg-card) !important; color: var(--text-main); }
+    .attendance-page [id$="Modal"] form > div { max-width: 100%; flex-wrap: wrap; }
+    .attendance-page [id$="Modal"] input, .attendance-page [id$="Modal"] select { max-width: 100%; }
+    .attendance-page .attendance-modal-fields { grid-template-columns: minmax(0, 1fr) !important; }
+    .attendance-page .attendance-hour-checkboxes { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .attendance-page #newAbsenceModal .form-group > div { flex-wrap: wrap; gap: 6px; }
+    .attendance-page #newAbsenceModal .form-group > div > div { flex-wrap: wrap; }
+    .attendance-page [id$="Modal"] button { min-height: 40px; }
+    .attendance-page #mgmtHoursList { overflow-x: auto !important; }
+    .attendance-page #quickAddHourForm > div { min-width: 0 !important; flex-basis: 100% !important; }
+    .attendance-page .attendance-hour-checkboxes, .attendance-page .attendance-hour-checkboxes label { background: var(--bg-card) !important; }
+    .attendance-page #liveToastContainer { max-width: calc(100vw - 24px); }
+}
+/* UI-01B: absence summaries and AJAX dossier, without changing desktop/print. */
+@media screen and (max-width: 768px) {
+    .absence-cards-page .main-container > .card { padding: 12px !important; margin-bottom: 12px !important; }
+    .absence-cards-page h1 { font-size: 18px !important; overflow-wrap: anywhere; }
+    .absence-cards-page .absence-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-bottom: 12px !important; }
+    .absence-cards-page .absence-kpis .card { min-width: 0; margin: 0; padding: 10px !important; }
+    .absence-cards-page .absence-kpis .card > div:first-child { font-size: 10px !important; color: var(--text-muted) !important; overflow-wrap: anywhere; }
+    .absence-cards-page .absence-kpis .card > div:nth-child(2) { font-size: 22px !important; }
+    .absence-cards-page .absence-kpis .card > div:last-child { font-size: 11px !important; }
+    .absence-cards-page .filter-card form { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+    .absence-cards-page .filter-card form > div { min-width: 0; }
+    .absence-cards-page .filter-card form > div:first-child { grid-column: 1 / -1; }
+    .absence-cards-page .filter-card form > div:last-child { flex-wrap: wrap; }
+    .absence-cards-page .form-control { min-width: 0; min-height: 44px; }
+    .absence-cards-page .btn { min-height: 44px; white-space: normal; }
+    .absence-cards-page .absence-cards-table,
+    .absence-cards-page .absence-cards-table tbody { display: block; width: 100%; }
+    .absence-cards-page .absence-cards-table thead { display: none; }
+    .absence-cards-page .absence-cards-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .absence-cards-page .absence-cards-table tbody td { display: block; min-width: 0; width: auto !important; padding: 0 !important; border: 0; overflow-wrap: anywhere; }
+    .absence-cards-page .absence-cards-table td:nth-child(1),
+    .absence-cards-page .absence-cards-table td:nth-child(5),
+    .absence-cards-page .absence-cards-table td:nth-child(7),
+    .absence-cards-page .absence-cards-table td:nth-child(2) > div:nth-child(2) { display: none; }
+    .absence-cards-page .absence-cards-table td:nth-child(2) { grid-column: 1; grid-row: 1; }
+    .absence-cards-page .absence-cards-table td:nth-child(3) { grid-column: 1; grid-row: 2; }
+    .absence-cards-page .absence-cards-table td:nth-child(3) .badge { white-space: normal; font-size: 10px !important; }
+    .absence-cards-page .absence-cards-table td:nth-child(4) { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+    .absence-cards-page .absence-cards-table td:nth-child(6) { grid-column: 1; grid-row: 3; align-self: center; text-align: left !important; }
+    .absence-cards-page .absence-cards-table td:nth-child(6) > div { justify-content: flex-start !important; flex-wrap: wrap; gap: 4px !important; }
+    .absence-cards-page .absence-cards-table td:nth-child(8) { grid-column: 1 / -1; grid-row: 4; }
+    .absence-cards-page .absence-cards-table td[colspan] { display: block; grid-column: 1 / -1; }
+    .absence-cards-page .modal { padding: 8px !important; }
+    .absence-cards-page .modal-content { width: 100% !important; max-height: 92vh !important; padding: 14px !important; min-width: 0; overflow-wrap: anywhere; }
+    .absence-cards-page .modal-content > div:first-child { gap: 8px; align-items: flex-start !important; }
+    .absence-cards-page .modal-content h3 { font-size: 17px !important; min-width: 0; }
+    .absence-cards-page .modal-content > div:last-child,
+    .absence-cards-page #justifyModal form > div:last-child { flex-wrap: wrap; gap: 8px; }
+    .absence-cards-page .modal-content button { min-width: 44px; min-height: 44px; }
+    .absence-cards-page #detailsModalContent { min-width: 0; }
+    .absence-cards-page .dossier-table-scroll { width: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+    .absence-cards-page .dossier-table-scroll table { min-width: 470px; table-layout: fixed; }
+    .absence-cards-page .dossier-table-scroll th,
+    .absence-cards-page .dossier-table-scroll td { white-space: normal; overflow-wrap: anywhere; padding: 8px !important; }
+}
+/* Student register: reuse the same rows, forms and handlers in mobile cards. */
+.student-expand { display: none; }
+
+/* Student Modal Form Grids (Desktop default) */
+.form-grid {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.form-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.form-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media screen and (max-width: 768px) {
+    .students-page .main-container > .card { padding: 12px !important; margin-bottom: 12px !important; }
+    .students-page .main-container > .card:first-of-type > div { gap: 10px !important; }
+    .students-page form[method="GET"] { min-width: 0 !important; width: 100%; display: grid !important; grid-template-columns: minmax(0, 1fr); gap: 8px !important; flex-basis: 100% !important; }
+    .students-page form[method="GET"] > div { min-width: 0 !important; width: 100% !important; }
+    .students-page .main-container > .card:first-of-type > div > div { flex-wrap: wrap; gap: 8px !important; }
+    .students-page .btn, .students-page .form-control { min-height: 44px; height: auto !important; }
+    .students-page .btn { white-space: normal !important; }
+    .students-page .students-table, .students-page .students-table tbody { display: block; width: 100%; }
+    .students-page .students-table thead { display: none; }
+    .students-page .students-table tbody tr {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        margin-bottom: 10px;
+        background: var(--bg-card);
+    }
+    .students-page .students-table td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+    .students-page .students-table td:nth-child(2) { order: 0; flex: 1 1 100%; width: 100%; }
+    .students-page .students-table td:nth-child(4) { order: 1; flex: 1 1 100%; width: 100%; color: var(--text-muted); }
+    .students-page .students-table td:nth-child(7) { order: 2; flex: 1 1 100%; width: 100%; }
+    .students-page .students-table td:nth-child(1) { order: 3; flex: 1 1 calc(50% - 6px); }
+    .students-page .students-table td:nth-child(3) { order: 4; flex: 1 1 calc(50% - 6px); }
+    .students-page .students-table td:nth-child(5) { order: 5; flex: 1 1 calc(50% - 6px); min-width: 140px; }
+    .students-page .students-table td:nth-child(6) { order: 6; flex: 1 1 calc(50% - 6px); min-width: 140px; }
+    .students-page .students-table tr:not(.student-expanded) td:nth-child(1),
+    .students-page .students-table tr:not(.student-expanded) td:nth-child(3),
+    .students-page .students-table tr:not(.student-expanded) td:nth-child(5),
+    .students-page .students-table tr:not(.student-expanded) td:nth-child(6),
+    .students-page .students-table tr:not(.student-expanded) td:nth-child(2) > span,
+    .students-page .students-table tr:not(.student-expanded) td:nth-child(2) > div { display: none; }
+    .students-page .student-expand { display: inline-flex; min-width: 44px; }
+    .students-page .student-expanded .student-expand { transform: rotate(180deg); }
+    .students-page .students-table td:nth-child(7) > div { justify-content: flex-end; flex-wrap: wrap; }
+    .students-page .students-table td:nth-child(7) .btn { min-width: 44px; }
+    .students-page .student-expanded td:nth-child(1)::before { content: 'Α.Μ.: '; color: var(--text-muted); }
+    .students-page .student-expanded td:nth-child(5)::before { content: '👨‍👩‍👧 1ος Κηδεμόνας'; }
+    .students-page .student-expanded td:nth-child(6)::before { content: '👨‍👩‍👦 2ος Κηδεμόνας'; }
+    .students-page .student-expanded td:nth-child(5)::before,
+    .students-page .student-expanded td:nth-child(6)::before { display: block; font-size: 12px; font-weight: 700; color: var(--text-main); margin-bottom: 5px; }
+    .students-page .student-expanded td:nth-child(5),
+    .students-page .student-expanded td:nth-child(6) {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        box-sizing: border-box;
+    }
+    .students-page #studentModal { padding: 8px !important; }
+    .students-page #studentModal > div { padding: 14px !important; background: var(--bg-card) !important; color: var(--text-main); max-height: 92vh !important; min-width: 0; overflow-wrap: anywhere; }
+    .students-page #studentForm .form-grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+    .students-page #studentForm .form-grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+    .students-page #studentForm .guardian-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+    .students-page #studentForm .form-group {
+        margin-bottom: 6px;
+    }
+    .students-page #studentForm label {
+        font-size: 12px !important;
+        margin-bottom: 4px !important;
+        display: block;
+    }
+    .students-page #studentForm div { min-width: 0; }
+    .students-page #studentForm > div[style*="background"],
+    .students-page #studentForm .form-group > div[style*="overflow-y"] { background: var(--bg-card) !important; }
+    .students-page #studentForm > div:last-child { flex-wrap: wrap; }
+    .students-page #studentForm .form-group > div label { min-height: 36px; }
+}
+
+@media screen and (max-width: 360px) {
+    .students-page #studentForm .guardian-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
+/* Sections and grades: mobile grouping reuses existing table rows/actions. */
+.section-grade-heading { display: none; }
+@media screen and (max-width: 768px) {
+    .sections-page .sections-layout { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+    .sections-page .sections-layout > *, .sections-page .card { min-width: 0; }
+    .sections-page .card { padding: 12px; margin-bottom: 12px; }
+    .sections-page .card-title { font-size: 16px; gap: 8px; }
+    .sections-page .btn, .sections-page .form-control { min-height: 44px; }
+    .sections-page .btn { white-space: normal; }
+    .sections-page .sections-table, .sections-page .sections-table tbody { display: block; width: 100%; }
+    .sections-page .sections-table thead { display: none; }
+    .sections-page .section-grade-heading { display: block; margin: 18px 0 8px; }
+    .sections-page .section-grade-heading:first-child { margin-top: 0; }
+    .sections-page .section-grade-heading th { display: block; white-space: normal; padding: 10px; background: var(--primary-light); color: var(--text-main); border-radius: var(--radius-sm); border: 0; }
+    .sections-page .section-grade-heading h3 { font-size: 15px; text-transform: none; }
+    .sections-page .section-item { display: grid; grid-template-columns: minmax(0, 1fr) 94px; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .sections-page .section-item td { display: block; min-width: 0; border: 0; padding: 0; overflow-wrap: anywhere; }
+    .sections-page .section-item td:nth-child(1) { grid-column: 1; grid-row: 1; align-self: center; }
+    .sections-page .section-item td:nth-child(2) { display: none; }
+    .sections-page .section-item td:nth-child(3) { grid-column: 1; grid-row: 2; }
+    .sections-page .section-item td:nth-child(3) a { display: inline-flex; min-height: 44px; align-items: center; }
+    .sections-page .section-item td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; color: var(--text-muted); }
+    .sections-page .section-item td:nth-child(4)::before { content: 'Καθηγητές: '; font-size: 12px; }
+    .sections-page .section-item td:nth-child(5) { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+    .sections-page .section-item td:nth-child(5) .btn { min-width: 44px; }
+    .sections-page .card > form { flex-wrap: wrap; }
+    .sections-page .card > form .form-control { min-width: 0; flex: 1 1 160px; }
+    .sections-page #sectionModal { padding: 8px !important; }
+    .sections-page #sectionModal > div { min-width: 0; padding: 16px !important; background: var(--bg-card) !important; color: var(--text-main); max-height: 92vh; overflow-y: auto; overflow-wrap: anywhere; }
+    .sections-page #sectionForm > div:last-child { flex-wrap: wrap; }
+}
+/* Teachers: one existing add form, presented as a mobile dialog. */
+.teacher-add-shell { display: contents; }
+.teachers-layout .card { min-width: 0; }
+.mobile-teacher-control { display: none; }
+@media screen and (max-width: 768px) {
+    .teachers-page h1 { font-size: 18px !important; overflow-wrap: anywhere; }
+    .teachers-page .main-container > .card { padding: 12px !important; }
+    .teachers-page .teachers-layout { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+    .teachers-page .teachers-layout > *, .teachers-page .card { min-width: 0; }
+    .teachers-page .teachers-layout .card { padding: 12px; }
+    .teachers-page .mobile-teacher-control { display: inline-flex; min-height: 44px; margin-bottom: 12px; }
+    .teachers-page .teacher-add-shell { display: none; }
+    .teachers-page .teacher-add-shell.teacher-add-open { display: flex; position: fixed; inset: 0; z-index: 9999; padding: 8px; align-items: center; justify-content: center; background: rgba(15,23,42,.65); }
+    .teachers-page .teacher-add-card { width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; margin: 0; padding: 16px !important; }
+    .teachers-page #closeAddTeacher { float: right; margin: 0 0 8px 8px; min-width: 44px; }
+    .teachers-page .teacher-add-card form { clear: both; }
+    .teachers-page .card-title { font-size: 16px; overflow-wrap: anywhere; }
+    .teachers-page .btn { min-height: 44px; white-space: normal; }
+    .teachers-page .form-control { min-width: 0; min-height: 44px; }
+    .teachers-page .teachers-table, .teachers-page .teachers-table tbody { display: block; width: 100%; }
+    .teachers-page .teachers-table thead { display: none; }
+    .teachers-page .teachers-table tbody tr { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .teachers-page .teachers-table td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+    .teachers-page .teachers-table td:nth-child(5)::before { content: 'Αναθέσεις: '; color: var(--text-muted); font-size: 12px; }
+    .teachers-page .teachers-table td:last-child > div { flex-wrap: wrap; }
+    .teachers-page .teachers-table td:last-child .btn { min-width: 44px; }
+    .teachers-page .teacher-add-card .form-group > div[style*="overflow-y"] { background: var(--bg-card) !important; }
+    .teachers-page .form-group label[style*="display:flex"] { min-height: 36px; }
+    .teachers-page #assignModal { padding: 8px; }
+    .teachers-page #assignModal .modal-content { width: 100% !important; min-width: 0; max-height: 92vh; overflow-y: auto; padding: 16px !important; overflow-wrap: anywhere; }
+    .teachers-page #assignModal .modal-content > div:first-child { gap: 8px; }
+    .teachers-page #assignModal h3 { min-width: 0; }
+    .teachers-page #assignModal button { min-width: 44px; min-height: 44px; }
+    .teachers-page #assignModal form > div:last-child { flex-wrap: wrap; }
+}
+/* MySchool import: collapse help only on mobile; keep upload forms intact. */
+.import-instructions-toggle { display: none; }
+.import-layout > * { min-width: 0; }
+@media screen and (max-width: 768px) {
+    .import-page h1 { font-size: 18px !important; overflow-wrap: anywhere; }
+    .import-page .card { padding: 12px !important; margin-bottom: 12px !important; min-width: 0; overflow-wrap: anywhere; }
+    .import-page .main-container > .card > div { flex-wrap: wrap; gap: 8px !important; }
+    .import-page .import-type-tabs { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px !important; margin-bottom: 12px !important; }
+    .import-page .import-type-tabs .btn { padding: 8px !important; font-size: 12px !important; }
+    .import-page .btn { min-height: 44px; white-space: normal; }
+    .import-page .import-instructions-toggle { display: inline-flex; margin-bottom: 12px; }
+    .import-page .import-layout { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+    .import-page .import-instructions { display: none; order: -1; }
+    .import-page .import-instructions.instructions-open { display: block; }
+    .import-page .form-control { min-width: 0; max-width: 100%; min-height: 44px; }
+    .import-page input[type="file"] { width: 100%; font-size: 12px; padding: 8px !important; }
+    .import-page input[type="file"]::file-selector-button { max-width: 100%; min-height: 36px; margin-right: 4px; }
+    .import-page textarea { resize: vertical; }
+    .import-page code { overflow-wrap: anywhere; }
+    .import-page .alert { overflow-wrap: anywhere; }
+}
+/* Settings: presentation only, no changes to submitted fields or SMTP behavior. */
+@media screen and (max-width: 768px) {
+    .settings-page .settings-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+    .settings-page .settings-grid > * { min-width: 0; }
+    .settings-page .card { min-width: 0; padding: 12px !important; margin-bottom: 12px !important; overflow-wrap: anywhere; }
+    .settings-page .card-title { font-size: 16px; gap: 8px !important; }
+    .settings-page .card-title > div { min-width: 0; flex-wrap: wrap; }
+    .settings-page .card-title > div > div { min-width: 0; }
+    .settings-page .card-title span { overflow-wrap: anywhere; }
+    .settings-page .form-control { min-width: 0; width: 100%; max-width: 100% !important; min-height: 44px; height: auto !important; background: var(--bg-main) !important; color: var(--text-main); }
+    .settings-page textarea { resize: vertical; }
+    .settings-page .btn { min-height: 44px; white-space: normal !important; }
+    .settings-page form div[style*="min-width"] { min-width: 0 !important; max-width: 100%; }
+    .settings-page form > div[style*="display:flex"],
+    .settings-page .settings-panel > div[style*="display:flex"] { flex-wrap: wrap; gap: 8px !important; }
+    .settings-page form > div[style*="display:flex"] > div { flex-basis: 100%; }
+    .settings-page .settings-panel { background: var(--bg-main) !important; color: var(--text-main); padding: 10px !important; overflow-wrap: anywhere; }
+    .settings-page code { overflow-wrap: anywhere; }
+    .settings-page .table-responsive { min-width: 0; max-width: 100%; scrollbar-width: thin; }
+    .settings-page .table-responsive::-webkit-scrollbar { display: block; height: 8px; }
+    .settings-page .table td { overflow-wrap: anywhere; }
+    .settings-page #smtpHolderModal, .settings-page #testSmtpModal { padding: 8px !important; }
+    .settings-page #smtpHolderModal > div, .settings-page #testSmtpModal > div { min-width: 0; width: 100% !important; max-height: 92vh; overflow-y: auto; padding: 14px !important; background: var(--bg-card) !important; color: var(--text-main); overflow-wrap: anywhere; }
+    .settings-page #smtpHolderModal .btn, .settings-page #testSmtpModal .btn { min-width: 44px; }
+}
+.absence-calendar { margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text-main); }
+.absence-calendar[hidden] { display: none; }
+.absence-calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.absence-calendar p { font-size: 12px; margin: 8px 0; }
+.absence-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin: 10px 0; }
+.absence-calendar-grid > span { text-align: center; font-size: 12px; }
+.absence-calendar button { font-family: inherit; cursor: pointer; min-width: 0 !important; min-height: 40px; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-main); }
+.absence-calendar-day.has-unjustified { background: #fee2e2; color: #991b1b; border-bottom: 4px solid #dc2626; }
+.absence-calendar-day.has-justified { background: #dbeafe; color: #1e40af; border-bottom: 4px solid #2563eb; }
+.absence-calendar-day.has-unjustified.has-justified { background: linear-gradient(135deg, #fee2e2 50%, #dbeafe 50%); color: #172033; border-bottom: 4px solid #dc2626; border-top: 4px solid #2563eb; }
+.absence-calendar .calendar-selected { outline: 2px solid var(--primary); outline-offset: -2px; font-weight: 700; }
+.absence-calendar button:focus-visible { outline: 3px solid var(--primary); outline-offset: 1px; }
+.absence-calendar-trigger { margin-top: 6px; }
+.colored-date-input::-webkit-calendar-picker-indicator { display: none; }
+@media print { .absence-calendar, .absence-calendar-trigger { display: none !important; } }
+.absence-calendar-heading button { width: 40px; flex-shrink: 0; font-size: 22px; }
+
+/* Step 9: preserve all teacher controls without page-level overflow. */
+@media (max-width: 768px) {
+    .teacher-attendance-page .app-navbar,
+    .teacher-help-page .app-navbar { flex-wrap: wrap; gap: 10px; }
+    .teacher-attendance-page .nav-user,
+    .teacher-help-page .nav-user { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+    .teacher-help-page .nav-brand { min-width: 0; max-width: 100%; }
+    .teacher-help-page .nav-user > * { max-width: 100%; white-space: normal; }
+    .teacher-help-page .nav-user { width: 100%; }
+    .teacher-help-page .nav-user > .btn { flex-shrink: 1; min-width: 0; }
+    .teacher-attendance-page .main-container,
+    .teacher-help-page .main-container { min-width: 0; overflow-wrap: anywhere; }
+    .teacher-attendance-page .student-grid { grid-template-columns: minmax(0, 1fr); }
+    .teacher-attendance-page .student-info { min-width: 0; overflow-wrap: anywhere; }
+    .teacher-help-page .status-demo-card { grid-template-columns: minmax(0, 1fr); }
+    .teacher-help-page .help-box { padding: 16px; }
+    .teacher-help-page .main-container .btn { max-width: 100%; white-space: normal; }
+    .teacher-help-page table { display: block; max-width: 100%; overflow-x: auto; }
+}
+
+@media (max-width: 768px) {
+    .admin-layout .nav-user > form { display: none; }
+    .admin-layout .nav-dropdown form { display: block; }
+    .admin-layout .nav-dropdown form button { width: 100%; text-align: left; }
+}
+
+
+/* Corner indicator when an hour button has a note/comment */
+.btn-hour-pill {
+    position: relative;
+}
+.btn-hour-pill.has-note::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-top: 7px solid #f59e0b;
+    border-left: 7px solid transparent;
+    border-top-right-radius: 4px;
+    pointer-events: none;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.35));
+}
+.btn-hour-pill.btn-hour-expulsion.has-note::after {
+    border-top-color: #ffffff;
+}
+.btn-hour-pill.btn-hour-neutral.has-note::after {
+    border-top-color: #f59e0b;
+}
+[data-theme="dark"] .btn-hour-pill.has-note::after {
+    border-top-color: #fbbf24;
+}

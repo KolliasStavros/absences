@@ -1,0 +1,44 @@
+# Protect sensitive files and directories (backups, logs, databases, csv sample files, configs, scripts)
+<FilesMatch "(\.(sql|lock|log|env|bak|sample|csv|md|ps1)$)">
+    Require all denied
+</FilesMatch>
+
+# Fresh installer requires a locally prepared key and HTTPS; installed.lock is checked by PHP.
+
+# Deny direct HTTP access to internal system directories (mod_rewrite)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(migrations|tests|bin|includes|config|scratch|release|tools)(/|$) - [F,L,NC]
+</IfModule>
+
+# Fallback directory protection (mod_alias works even without mod_rewrite)
+<IfModule mod_alias.c>
+    RedirectMatch 403 (?i)/(migrations|tests|bin|includes|config|scratch|release|tools)(/|$)
+</IfModule>
+
+# Prevent directory browsing
+Options -Indexes
+
+# UTF-8 default charset
+AddDefaultCharset UTF-8
+
+# Security Headers (if mod_headers is enabled)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Step 9: suppress sensitive diagnostics and direct hidden-file access.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+<IfModule mod_php.c>
+    php_flag display_errors Off
+</IfModule>
+<IfModule mod_headers.c>
+    Header unset X-Powered-By
+    Header always unset X-Powered-By
+    Header set Referrer-Policy "no-referrer"
+</IfModule>

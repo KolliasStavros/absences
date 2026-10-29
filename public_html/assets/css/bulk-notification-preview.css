@@ -1,0 +1,14 @@
+.bulk-preview-dialog .bulk-preview-note { margin-bottom:12px; font-size:13px; line-height:1.6; color:var(--text-muted); }
+.bulk-preview-dialog .bulk-preview-list { display:grid; gap:12px; margin-top:12px; }
+.bulk-preview-dialog .bulk-preview-item { border:1px solid var(--border); border-radius:10px; padding:14px; background:var(--bg-main); overflow-wrap:anywhere; }
+.bulk-preview-dialog h3 { font-size:15px; margin-bottom:6px; }
+.bulk-preview-dialog p { font-size:13px; margin-bottom:6px; }
+.bulk-preview-dialog .bulk-preview-warning { color:#92400e; background:#fffbeb; border-radius:6px; padding:6px 8px; }
+.bulk-preview-dialog summary { cursor:pointer; min-height:44px; padding:12px 0; font-size:13px; }
+.bulk-preview-dialog pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:13px; margin-top:8px; }
+.bulk-preview-dialog .app-dialog-panel { display:flex; flex-direction:column; overflow:hidden; }
+.bulk-preview-dialog .bulk-preview-header { flex-shrink:0; background:var(--bg-card); }
+.bulk-preview-dialog .app-dialog-heading { margin-bottom:12px; }
+.bulk-preview-dialog .app-dialog-actions { margin-top:0; padding-top:0; padding-bottom:12px; border-top:0; border-bottom:1px solid var(--border); }
+.bulk-preview-dialog .bulk-preview-scroll { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-top:14px; }
+.bulk-preview-dialog .bulk-preview-scroll:focus-visible { outline:2px solid var(--primary); outline-offset:-2px; }

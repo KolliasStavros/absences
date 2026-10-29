@@ -1,0 +1,15 @@
+.notification-history-filters { margin-bottom:20px; }
+.notification-history-filters h1 { font-size:22px; margin-bottom:16px; }
+.notification-history-filters form { display:grid; grid-template-columns:minmax(160px,1.5fr) repeat(2,minmax(130px,1fr)) repeat(2,minmax(100px,.8fr)) auto; gap:10px; align-items:end; }
+.notification-history-filters form > div { min-width:0; }
+.notification-history-filters label { display:block; font-size:12px; margin-bottom:6px; }
+.notification-history-filters .form-control { width:100%; min-width:0; min-height:44px; }
+.notification-history-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.notification-history-actions .btn { white-space:nowrap; }
+.notification-history-actions .btn,.notification-history-pagination .btn { min-height:44px; justify-content:center; }
+.notification-history-filters p { margin-top:12px; color:var(--text-muted); font-size:12px; line-height:1.6; }
+.notification-history-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px; font-size:13px; }
+.notification-history-details { overflow-wrap:anywhere; }
+@media screen and (min-width:1101px) { .notification-history-actions { flex-wrap:nowrap; } .notification-history-actions .btn { padding-inline:12px; font-size:12px; } }
+@media screen and (max-width:1100px) { .notification-history-filters form { grid-template-columns:repeat(2,minmax(0,1fr)); } .notification-history-filters form > div:first-child,.notification-history-actions { grid-column:1/-1; } }
+@media screen and (max-width:600px) { .notification-history-filters form { gap:10px 8px; } .notification-history-filters .form-control { font-size:16px; padding-inline:8px; } .notification-history-actions .btn { flex:1 1 120px; } }

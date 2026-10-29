@@ -1,0 +1,80 @@
+[
+  {
+    "package": "composer/pcre",
+    "version": "3.4.0",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      {
+        "path": "third-party-licenses/composer/pcre/LICENSE",
+        "sha256": "984627c7eb714851bb191d4d463aec6e5bb71bf2f373c8b898304bd8298bfe48"
+      }
+    ]
+  },
+  {
+    "package": "maennchen/zipstream-php",
+    "version": "3.1.2",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      {
+        "path": "third-party-licenses/maennchen/zipstream-php/LICENSE",
+        "sha256": "8d353aaa4565ce29c9e7dfc81c198dd621190407faf7719bab8e5d078f588810"
+      }
+    ]
+  },
+  {
+    "package": "markbaker/complex",
+    "version": "3.0.2",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      {
+        "path": "third-party-licenses/markbaker/complex/license.md",
+        "sha256": "f9285493611c689d91458db90c2206ec840966d8a3ed55af342ada1b8af929ea"
+      }
+    ]
+  },
+  {
+    "package": "markbaker/matrix",
+    "version": "3.0.1",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      {
+        "path": "third-party-licenses/markbaker/matrix/license.md",
+        "sha256": "c09e197c92276a219afc5488cf0b8ce57544c41345c0fdc394d88f92a4786961"
+      }
+    ]
+  },
+  {
+    "package": "phpoffice/phpspreadsheet",
+    "version": "5.10.0",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      {
+        "path": "third-party-licenses/phpoffice/phpspreadsheet/LICENSE",
+        "sha256": "1416c9cb9b9925bbbecbd2aaeb62864fa5544f5572e5e0e130304f532c38ac8e"
+      }
+    ]
+  },
+  {
+    "package": "psr/simple-cache",
+    "version": "3.0.0",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      {
+        "path": "third-party-licenses/psr/simple-cache/LICENSE.md",
+        "sha256": "9d7269855b25e36b54461c029260a56c97499a647117ea37f4c5cdfc956a7f8b"
+      }
+    ]
+  }
+]

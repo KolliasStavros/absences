@@ -1,0 +1,62 @@
+/* Presentation only; attendance actions and form fields stay unchanged. */
+.attendance-page .dashboard-page-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.attendance-page .dashboard-page-actions .btn { min-height:44px; justify-content:center; }
+.attendance-page .dashboard-class-link { white-space:nowrap; margin-left:auto; }
+@media screen and (max-width:768px) { .attendance-page .dashboard-page-actions { width:100%; } }
+@media screen {
+    .attendance-page .attendance-kpis { gap:10px !important; margin-bottom:14px !important; }
+    .attendance-page .attendance-kpis > .card { padding:9px 14px !important; margin-bottom:0; }
+    .attendance-page .attendance-kpis > .card > div:nth-child(2) { margin-top:2px !important; line-height:1.2; }
+}
+.attendance-page .live-status-badge[data-state="connecting"] { background:#fffbeb; border-color:#fcd34d; color:#92400e; }
+.attendance-page .live-status-badge[data-state="disconnected"] { background:#fef2f2; border-color:#fca5a5; color:#991b1b; }
+.attendance-page .live-status-badge:not([data-state="healthy"]) .live-pulse-dot { animation:none; background:currentColor; box-shadow:none; }
+.attendance-page .live-sync-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:12px; color:var(--text-muted); margin-top:8px; }
+.attendance-page .live-sync-actions .btn { min-height:44px; white-space:normal; }
+.attendance-page .live-sync-actions [hidden] { display:none; }
+@media screen {
+    .attendance-page #hourNoteModal > div {
+        background: var(--bg-card) !important;
+        color: var(--text-main);
+        max-height: calc(100vh - 32px);
+        max-height: calc(100dvh - 32px);
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        min-width: 0;
+    }
+    .attendance-page #hourNoteModal > div > div:first-child,
+    .attendance-page #hourNoteModal > div > div:last-child { background: var(--bg-main) !important; }
+    .attendance-page #hourNoteInput {
+        background: var(--bg-main);
+        color: var(--text-main);
+        border-color: var(--border) !important;
+    }
+    .attendance-page #hourNoteModal > div > div:first-child { gap: 8px; }
+    .attendance-page #hourNoteModal > div > div:first-child > div { min-width: 0; }
+    .attendance-page #hourNoteModal > div > div:last-child { flex-wrap: wrap; }
+    .attendance-page #hourNoteModal :is(h4,span) { overflow-wrap: anywhere; }
+    .attendance-page #hourNoteModal button { min-height: 44px; min-width: 44px; }
+    .attendance-page #hourNoteModal :is(button,input):focus-visible {
+        outline: 3px solid var(--primary) !important;
+        outline-offset: 2px;
+    }
+}
+@media screen and (max-width: 768px) {
+    .attendance-page .attendance-filters .form-control,
+    .attendance-page #newAbsenceModal .form-control,
+    .attendance-page #studentAbsenceModal .form-control,
+    .attendance-page #hourNoteInput { font-size: 16px !important; min-height: 44px; }
+    .attendance-page .btn-tool-mode { min-height: 44px; }
+    .attendance-page .inline-mode-selector { flex-wrap: wrap; max-width: 100%; }
+    .attendance-page #hourNoteModal { padding: 8px !important; }
+    .attendance-page #hourNoteModal > div {
+        max-height: calc(100dvh - 16px);
+    }
+    .attendance-page #hourNoteModal > div > div:last-child .btn { flex: 1 1 120px; }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+    .attendance-page .live-pulse-dot,
+    .attendance-page .row-highlight-flash,
+    .attendance-page .live-toast,
+    .attendance-page .hour-context-menu { animation: none; transition: none; }
+}

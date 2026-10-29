@@ -1,0 +1,5 @@
+.students-page .contact-quality-summary { padding:12px 16px; margin-bottom:16px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; font-size:13px; overflow-wrap:anywhere; }
+.students-page .contact-quality-summary p { margin-top:6px; color:var(--text-muted); line-height:1.6; }
+.students-page .contact-quality-warning { margin-top:6px; color:#92400e; background:#fffbeb; padding:6px 8px; border-radius:6px; font-size:12px; }
+.students-page .contact-quality-warning p { margin:2px 0; }
+@media screen and (max-width:768px) { .students-page .students-table tr:not(.student-expanded) td:nth-child(2) > .contact-quality-warning { display:block; } .students-page #contactFilter { font-size:16px !important; min-height:44px; width:100%; } }

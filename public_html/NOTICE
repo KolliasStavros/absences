@@ -1,0 +1,15 @@
+Absences — Σχολικό παρουσιολόγιο
+Copyright (c) 2026 Σταύρος Κόλλιας
+SPDX-License-Identifier: GPL-3.0-only
+
+The original Absences application code, documentation and distribution tools
+are licensed under the GNU General Public License, version 3 only.
+The complete license text is provided in LICENSE.
+
+This program is distributed without warranty, to the extent permitted by law.
+Redistributed modified versions must retain the applicable notices and comply
+with GPLv3, including its source-code requirements.
+
+Bundled third-party components retain their own copyright notices and licenses.
+See THIRD-PARTY-NOTICES.md and the original license files within vendor/.
+MySchool and other external service names do not imply endorsement or affiliation.

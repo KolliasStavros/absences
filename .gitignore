@@ -1,0 +1,37 @@
+# Runtime configuration and personal installation keys
+/public_html/config/*
+!/public_html/config/config.php
+!/public_html/config/.htaccess
+INSTALLATION-KEY*.txt
+install-access.php
+*.key
+*.pem
+.env
+.env.*
+# Private data, exports, backups and release outputs
+/absences-private*/
+/private/
+/backups/
+/maintenance/
+/technical-errors/
+/release/
+/scratch/
+*.zip
+*.zip.sha256
+*.log
+*.bak
+*.sql.gz
+*.sql.zip
+*.csv
+*.xls
+*.xlsx
+# Local tooling
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Bundled third-party resource; retain with the dependency.
+!/public_html/includes/spreadsheet/vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Calculation/locale/Translations.xlsx

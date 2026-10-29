@@ -1,0 +1,61 @@
+/* Shared opt-in components. Existing forms and JavaScript retain their IDs. */
+.app-dialog {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15,23,42,.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.app-dialog-panel {
+    background: var(--bg-card);
+    color: var(--text-main);
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow-y: auto;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    position: relative;
+    min-width: 0;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+.app-dialog-panel-wide { max-width: 680px; }
+.app-dialog-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:18px; }
+.app-dialog-title { font-size:18px; font-weight:700; margin:0; line-height:1.5; overflow-wrap:anywhere; }
+.app-dialog-close { display:inline-flex; align-items:center; justify-content:center; background:transparent; border:1px solid var(--border); border-radius:8px; font-size:22px; cursor:pointer; color:var(--text-muted); min-width:44px; min-height:44px; flex-shrink:0; }
+.app-dialog-close:hover { color:var(--text-main); background:var(--bg-main); }
+.app-dialog-actions { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px; padding-top:14px; border-top:1px solid var(--border); }
+.app-dialog-actions-split { justify-content:space-between; }
+.app-dialog-actions .btn { min-height:44px; justify-content:center; white-space:normal; }
+.app-dialog .form-control { min-height:44px; }
+.app-dialog-secondary-action { display:flex; margin-top:8px; white-space:normal; }
+.app-dialog .form-group > small { display:block; margin-top:6px; font-size:12px; line-height:1.6; color:var(--text-muted); }
+.app-dialog-status { font-size:12px; color:var(--text-muted); line-height:1.6; }
+.app-dialog-history { min-height:120px; }
+.app-dialog-history { overflow-x:auto; max-width:100%; }
+[data-theme="dark"] .app-dialog-history table tbody tr { background:var(--bg-card) !important; }
+[data-theme="dark"] .app-dialog-history table tbody tr:nth-child(even) { background:var(--bg-main) !important; }
+[data-theme="dark"] .app-dialog-history .table-custom tbody tr:hover td { background:var(--bg-main); }
+.app-dialog :is(button,a,input,select):focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
+@media (max-width:600px) {
+    .app-dialog { padding:8px; }
+    .app-dialog-panel { padding:16px; }
+    .app-dialog .form-control { font-size:16px; }
+    .app-dialog-actions .btn { flex:1 1 180px; }
+}
+@media (max-height:500px) {
+    .app-dialog { align-items:flex-start; overflow-y:auto; }
+    .app-dialog-panel { max-height:calc(100dvh - 16px); }
+}

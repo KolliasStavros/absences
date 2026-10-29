@@ -1,0 +1,2 @@
+# Deny direct web access to all files in config
+Require all denied

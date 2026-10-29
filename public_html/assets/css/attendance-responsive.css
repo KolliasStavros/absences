@@ -1,0 +1,51 @@
+/* Page-scoped overrides of the legacy compact layout. */
+@media screen and (max-width: 768px) {
+    .teacher-attendance-page .filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+    .teacher-attendance-page .filter-bar .fg-section { grid-column: 1 / -1; }
+    .teacher-attendance-page .filter-bar .fg-date { grid-column: auto !important; }
+    .teacher-attendance-page .filter-bar .form-group { min-width: 0; }
+    .teacher-attendance-page .filter-bar .form-control {
+        height: 44px !important;
+        min-width: 0;
+        width: 100%;
+        font-size: 16px !important;
+    }
+    .teacher-attendance-page .quick-tools-area {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px !important;
+    }
+    .teacher-attendance-page .view-mode-toggle { grid-column: 1 / -1; justify-self: start; }
+    .teacher-attendance-page .btn-view-toggle,
+    .teacher-attendance-page .quick-tools-area #btnAllPresent,
+    .teacher-attendance-page .quick-tools-area input#studentSearchInput {
+        min-height: 44px !important;
+        height: auto !important;
+    }
+    .teacher-attendance-page .quick-tools-area input#studentSearchInput {
+        width: 100% !important;
+        font-size: 16px !important;
+    }
+    .teacher-attendance-page .student-grid.view-bar .hours-bar-wrapper {
+        gap: 3px !important;
+        padding: 4px !important;
+    }
+    .teacher-attendance-page .student-grid.view-bar .hour-pill-btn { height: 44px !important; }
+    .teacher-attendance-page .floating-bar { max-height: 40dvh; overflow-y: auto; }
+    .teacher-attendance-page .main-container { padding-bottom: env(safe-area-inset-bottom); }
+    .teacher-attendance-page :is(button,input,select):focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 2px;
+    }
+}
+/* Short landscape screens: keep actions in flow instead of covering the roster. */
+@media screen and (max-height: 500px) {
+    .teacher-attendance-page .floating-bar { position: static; max-height: none; }
+}
+@media screen and (max-width: 360px) {
+    .teacher-attendance-page .quick-tools-area { grid-template-columns: minmax(0, 1fr); }
+    .teacher-attendance-page .quick-tools-area #btnAllPresent { width: 100%; }
+}
