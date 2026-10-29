@@ -35,8 +35,9 @@ final class AbsencesGitHubUpdates {
                 CURLOPT_WRITEFUNCTION=>static function($ch,$data) use ($destination,$limit,&$bytes,&$overflow,&$status) {if($status>=300 && $status<400)return strlen($data);$bytes+=strlen($data);if($bytes>$limit){$overflow=true;return 0;}return fwrite($destination,$data);}
             ]);
             if(PHP_OS_FAMILY==='Windows' && defined('CURLSSLOPT_NATIVE_CA'))curl_setopt($ch,CURLOPT_SSL_OPTIONS,CURLSSLOPT_NATIVE_CA);
-            try{$ok=curl_exec($ch);$code=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);}finally{curl_close($ch);}
-            if($ok===false || $overflow)throw new DomainException('Η ασφαλής λήψη απέτυχε ή υπερέβη το επιτρεπόμενο μέγεθος. Ελέγξτε τη σύνδεση και τα πιστοποιητικά του server.');
+            try{$ok=curl_exec($ch);$code=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);$curlCode=curl_errno($ch);}finally{curl_close($ch);}
+            if($overflow)throw new DomainException('Το αρχείο υπερβαίνει το επιτρεπόμενο μέγεθος.');
+            if($ok===false){$reason=match($curlCode){6=>'Δεν επιλύεται η διεύθυνση GitHub (DNS).',7=>'Δεν είναι δυνατή η σύνδεση με το GitHub.',28=>'Έληξε ο χρόνος αναμονής σύνδεσης/λήψης.',35,60,77=>'Απέτυχε ο έλεγχος ασφαλούς σύνδεσης TLS. Ελέγξτε τα πιστοποιητικά CA του hosting.',default=>'Αποτυχία ασφαλούς σύνδεσης/λήψης.'};throw new DomainException($reason.' Κωδικός cURL: '.$curlCode.'.');}
             if($code>=300 && $code<400 && $location!==''){$url=$location;continue;}
             if($code!==200)throw new DomainException('Το GitHub δεν επέτρεψε τον έλεγχο/λήψη (HTTP '.$code.'). Δοκιμάστε αργότερα.');
             return;

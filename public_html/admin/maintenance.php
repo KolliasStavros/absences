@@ -28,8 +28,9 @@ if($_SERVER['REQUEST_METHOD']==='POST') {
     try {
         if((int)($_SERVER['CONTENT_LENGTH']??0)>$uploadLimit)throw new DomainException('Το αίτημα υπερβαίνει το όριο μεταφόρτωσης του server. Χρησιμοποιήστε μικρότερο πακέτο.');
         if(!verifyCsrfToken($_POST['csrf_token']??''))throw new DomainException('Μη έγκυρο αίτημα ασφαλείας.');
-        maintenancePassword($actor);
         $action=$_POST['action']??'';
+        if(!is_string($action))throw new DomainException('Μη έγκυρη ενέργεια.');
+        if(!in_array($action,['github_check','github_stage'],true))maintenancePassword($actor);
         if($action==='setup') {
             if($manager || defined('APP_MAINTENANCE_DIR') || getenv('APP_MAINTENANCE_DIR'))throw new DomainException('Η αποθήκευση έχει ήδη ρυθμιστεί. Αλλαγή μόνο από τον υπεύθυνο εγκατάστασης.');
             $path=$_POST['private_path']??'';
@@ -66,9 +67,9 @@ if($_SERVER['REQUEST_METHOD']==='POST') {
             try {
                 $manifest=$manager->verifyPackage($file,APP_VERSION);
                 if($manifest['version']!==$release['version'])throw new DomainException('Η υπογεγραμμένη έκδοση διαφέρει από το GitHub Release.');
-                $_SESSION['pending_update']=['id'=>$id,'hash'=>hash_file('sha256',$file),'manifest'=>$manifest];
+                $_SESSION['pending_update']=['id'=>$id,'hash'=>hash_file('sha256',$file),'manifest'=>$manifest,'origin'=>'github'];
             } catch(Throwable $e) {if(is_file($file))unlink($file);throw $e;}
-            $message='Το πακέτο κατέβηκε και επαληθεύτηκε. Δεν έγινε εγκατάσταση. Εξετάστε τις αλλαγές και επιβεβαιώστε την ενημέρωση παρακάτω.';
+            $message='Το πακέτο κατέβηκε και επαληθεύτηκε. Εξετάστε την προεπισκόπηση στην κάρτα GitHub και επιβεβαιώστε την εγκατάσταση.';
         } elseif($action==='trust_key') {
             if(($_POST['confirm']??'')!=='ΕΜΠΙΣΤΕΥΟΜΑΙ ΤΟ ΚΛΕΙΔΙ')throw new DomainException('Επιβεβαιώστε ρητά το κλειδί εκδότη.');
             $encoded=trim($_POST['public_key']??'');$key=base64_decode($encoded,true);
@@ -82,9 +83,11 @@ if($_SERVER['REQUEST_METHOD']==='POST') {
             if(!move_uploaded_file($_FILES['package']['tmp_name'],$file))throw new RuntimeException('Δεν αποθηκεύτηκε το πακέτο.');chmod($file,0600);
             $_SESSION['pending_update']=['id'=>$id,'hash'=>hash_file('sha256',$file),'manifest'=>$manifest];
             $message='Το πακέτο ελέγχθηκε. Εξετάστε τις αλλαγές πριν από την εφαρμογή.';
-        } elseif($action==='update') {
-            if(($_POST['confirm']??'')!=='ΕΝΗΜΕΡΩΣΗ')throw new DomainException('Πληκτρολογήστε ΕΝΗΜΕΡΩΣΗ.');
+        } elseif($action==='update' || $action==='github_install') {
+            if($action==='update' && ($_POST['confirm']??'')!=='ΕΝΗΜΕΡΩΣΗ')throw new DomainException('Πληκτρολογήστε ΕΝΗΜΕΡΩΣΗ.');
             $pending=$_SESSION['pending_update']??null;
+            if($action==='github_install' && (($pending['origin']??'')!=='github' || !is_string($_POST['target_version']??null) || $_POST['target_version']!==($pending['manifest']['version']??null)))throw new DomainException('Η προεπισκόπηση άλλαξε. Ελέγξτε ξανά το πακέτο GitHub.');
+            if($action==='update' && ($pending['origin']??'')==='github')throw new DomainException('Χρησιμοποιήστε την επιβεβαίωση στην κάρτα GitHub.');
             if(!$pending || !preg_match('/^[a-f0-9]{32}$/D',$pending['id']))throw new DomainException('Προηγείται έλεγχος πακέτου.');
             $file=$manager->store.'/package-'.$pending['id'].'.zip';
             if(!is_file($file) || !hash_equals($pending['hash'],hash_file('sha256',$file)))throw new DomainException('Το ελεγμένο πακέτο άλλαξε.');
@@ -130,19 +133,20 @@ if($_SERVER['REQUEST_METHOD']==='POST') {
             echo '<!DOCTYPE html><html lang="el"><meta charset="utf-8"><title>Απεγκατάσταση Absences</title><p>Η απεγκατάσταση ολοκληρώθηκε. Διαγράφηκαν μόνο οι αναγνωρισμένοι πίνακες της εγκατάστασης. Τα αρχεία και τα ιδιωτικά αντίγραφα διατηρήθηκαν.</p></html>';exit;
         } else throw new DomainException('Μη έγκυρη ενέργεια.');
         $error='';
-    }catch(Throwable $e){$error=$e instanceof DomainException ? $e->getMessage() : 'Η ενέργεια δεν ολοκληρώθηκε. Ελέγξτε την κατάσταση συντήρησης και το ιδιωτικό αρχείο καταγραφής.';error_log('Absences maintenance: '.get_class($e).' code='.$e->getCode());}
+    }catch(Throwable $e){$error=$e instanceof DomainException ? $e->getMessage() : 'Η ενέργεια δεν ολοκληρώθηκε. Ελέγξτε την κατάσταση συντήρησης και το ιδιωτικό αρχείο καταγραφής.';if(in_array($action??'',['github_check','github_stage'],true))$_SESSION['github_updates']=['checked_at'=>time(),'current'=>APP_VERSION,'available'=>null,'failed'=>true,'error'=>$error];error_log('Absences maintenance: '.get_class($e).' code='.$e->getCode());}
 }
 if($manager){try{$tables=$manager->inventory();$drop=$manager->canDrop();$state=$manager->read('state.json');}catch(Throwable $e){$error=$e instanceof DomainException?$e->getMessage():'Δεν ολοκληρώθηκε ο έλεγχος εγκατάστασης.';}}
 // At most once per day per admin session when opening this page. No unattended installation.
 $githubCheck=$_SESSION['github_updates']??null;$githubError='';
 if($manager && !$state && (!$githubCheck || ($githubCheck['current']??'')!==APP_VERSION || time()-($githubCheck['checked_at']??0)>86400)) {
     try {$_SESSION['github_updates']=AbsencesGitHubUpdates::check(APP_VERSION);}
-    catch(Throwable $e) {$_SESSION['github_updates']=['checked_at'=>time(),'current'=>APP_VERSION,'available'=>null,'failed'=>true];$githubError=$e instanceof DomainException?$e->getMessage():'Ο έλεγχος ενημερώσεων δεν ολοκληρώθηκε.';}
+    catch(Throwable $e) {$_SESSION['github_updates']=['checked_at'=>time(),'current'=>APP_VERSION,'available'=>null,'failed'=>true];$githubError=$e instanceof DomainException?$e->getMessage():'Ο έλεγχος ενημερώσεων δεν ολοκληρώθηκε.';$_SESSION['github_updates']['error']=$githubError;}
 }
 $githubCheck=$_SESSION['github_updates']??null;
 $escape=static fn($s)=>htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
 $backupId=$_SESSION['lifecycle_backup']??null;
 $pending=$_SESSION['pending_update']['manifest']??null;
+$pendingOrigin=$_SESSION['pending_update']['origin']??'manual';
 $restorePreview=null;$restoreChoices=[];
 if($manager){$restoreChoices=$manager->listBackups();$restorePreview=$_SESSION['restore_preview']['summary']??null;}
 $phaseLabels=['backup'=>'Δημιουργία αντιγράφου','updating'=>'Εφαρμογή ενημέρωσης','restoring'=>'Επαναφορά από backup','preparing_uninstall'=>'Προετοιμασία απεγκατάστασης','uninstall_prepared'=>'Αναμονή λήψης backup και τελικής επιβεβαίωσης','recovery_required'=>'Απαιτείται ανάκτηση από τον υπεύθυνο εγκατάστασης'];
@@ -162,15 +166,16 @@ $pageTitle='Ενημερώσεις & Απεγκατάσταση';require __DIR__
 <section class="card maintenance-card"><h2>Ενημερώσεις από GitHub</h2>
 <p>Πηγή: <a href="https://github.com/KolliasStavros/absences/releases" target="_blank" rel="noopener">KolliasStavros/absences</a>. Ο έλεγχος γίνεται κατά το άνοιγμα αυτής της σελίδας, έως μία φορά την ημέρα ανά συνεδρία. Η εγκατάσταση απαιτεί επιβεβαίωση.</p>
 <?php if($githubCheck): ?><p>Τελευταία προσπάθεια: <?= $escape(date('d/m/Y H:i',(int)$githubCheck['checked_at'])) ?>.</p><?php endif; ?>
-<?php if($githubError || !empty($githubCheck['failed'])): ?><p role="status"><?= $escape($githubError ?: 'Ο τελευταίος έλεγχος απέτυχε. Δοκιμάστε ξανά.') ?></p>
+<?php if($githubError || !empty($githubCheck['failed'])): ?><p role="status"><?= $escape($githubError ?: ($githubCheck['error']??'Ο τελευταίος έλεγχος απέτυχε. Πατήστε Έλεγχος τώρα.')) ?></p>
 <?php elseif(!empty($githubCheck['available'])): $available=$githubCheck['available']; ?><p>Διαθέσιμη ενημέρωση: <strong><?= $escape($available['version']) ?></strong>.</p><p><a href="<?= $escape($available['page']) ?>" target="_blank" rel="noopener">Πληροφορίες έκδοσης</a></p>
-<form method="post"><?= csrfField() ?><input type="hidden" name="action" value="github_stage"><input type="hidden" name="target_version" value="<?= $escape($available['version']) ?>"><label>Κωδικός διαχειριστή<input class="form-control" type="password" name="password" autocomplete="current-password" required></label><button class="btn btn-primary" <?= $state?'disabled':'' ?>>Λήψη και έλεγχος υπογραφής</button></form>
+<form method="post"><?= csrfField() ?><input type="hidden" name="action" value="github_stage"><input type="hidden" name="target_version" value="<?= $escape($available['version']) ?>"><button class="btn btn-primary" <?= $state?'disabled':'' ?>>Λήψη και έλεγχος υπογραφής</button></form>
 <?php else: ?><p>Δεν βρέθηκε νεότερο πακέτο συμβατό με την έκδοση <?= $escape(APP_VERSION) ?>. Ένα ZIP νέας εγκατάστασης δεν αποτελεί ενημέρωση.</p><?php endif; ?>
-<form method="post"><?= csrfField() ?><input type="hidden" name="action" value="github_check"><label>Κωδικός διαχειριστή<input class="form-control" type="password" name="password" autocomplete="current-password" required></label><button class="btn btn-secondary" <?= $state?'disabled':'' ?>>Έλεγχος τώρα</button></form>
-<p>Πριν από τη λήψη απαιτείται ορισμός έμπιστου δημόσιου κλειδιού εκδότη στην αντίστοιχη ενότητα. Το κλειδί δεν λαμβάνεται αυτόματα από το GitHub. Μετά τον έλεγχο χρησιμοποιήστε «Backup και εφαρμογή ενημέρωσης» παρακάτω.</p></section>
-<section class="card maintenance-card"><h2>Ενημέρωση εφαρμογής</h2><p>Ανεβάστε υπογεγραμμένο πακέτο ενημέρωσης Absences, έως <?= $escape(round($uploadLimit/1048576,1)) ?> MB σύμφωνα με τα όρια του server. Το πακέτο εγκατάστασης δεν είναι πακέτο ενημέρωσης.</p>
+<form method="post"><?= csrfField() ?><input type="hidden" name="action" value="github_check"><button class="btn btn-secondary" <?= $state?'disabled':'' ?>>Έλεγχος τώρα</button></form>
+<p>Πριν από τη λήψη απαιτείται ορισμός έμπιστου δημόσιου κλειδιού εκδότη στην αντίστοιχη ενότητα. Το κλειδί δεν λαμβάνεται αυτόματα από το GitHub. Ο κωδικός ζητείται μόνο στην τελική εγκατάσταση, στην ίδια κάρτα.</p><?php if($pending && $pendingOrigin==='github'):?><hr><p>Νέα έκδοση: <strong><?= $escape($pending['version']) ?></strong></p><p><?= $escape($pending['description']??'') ?></p><details><summary>Αρχεία και μεταβολές βάσης</summary><ul><?php foreach(array_keys($pending['files']??[]) as $path):?><li><?= $escape($path) ?></li><?php endforeach;?><?php foreach(($pending['delete']??[]) as $path):?><li>Αφαίρεση: <?= $escape($path) ?></li><?php endforeach;?><?php foreach(array_keys($pending['migrations']??[]) as $path):?><li>Βάση: <?= $escape($path) ?></li><?php endforeach;?></ul></details>
+<form method="post"><?= csrfField() ?><input type="hidden" name="action" value="github_install"><input type="hidden" name="target_version" value="<?= $escape($pending['version']) ?>"><p>Με το επόμενο κουμπί επιβεβαιώνετε την εγκατάσταση της παραπάνω έκδοσης. Θα δημιουργηθεί πρώτα επαληθευμένο backup.</p><label>Κωδικός διαχειριστή<input class="form-control" type="password" name="password" id="githubInstallPassword" autocomplete="current-password" required></label><button class="btn btn-primary" <?= $state?'disabled':'' ?>>Backup και εγκατάσταση</button></form><?php endif;?></section>
+<section class="card maintenance-card"><h2>Χειροκίνητη ενημέρωση από ZIP</h2><p>Ανεβάστε υπογεγραμμένο πακέτο ενημέρωσης Absences, έως <?= $escape(round($uploadLimit/1048576,1)) ?> MB σύμφωνα με τα όρια του server. Το πακέτο εγκατάστασης δεν είναι πακέτο ενημέρωσης.</p>
 <form method="post" enctype="multipart/form-data"><?= csrfField() ?><input type="hidden" name="action" value="stage"><label>Πακέτο<input type="file" name="package" accept=".zip" required></label><label>Κωδικός διαχειριστή<input class="form-control" type="password" name="password" autocomplete="current-password" required></label><button class="btn btn-primary" <?= $state?'disabled':'' ?>>Έλεγχος πακέτου</button></form>
-<?php if($pending):?><hr><p>Νέα έκδοση: <strong><?= $escape($pending['version']) ?></strong></p><p><?= $escape($pending['description']??'') ?></p><details><summary>Αρχεία και μεταβολές βάσης</summary><ul><?php foreach(array_keys($pending['files']??[]) as $path):?><li><?= $escape($path) ?></li><?php endforeach;?><?php foreach(($pending['delete']??[]) as $path):?><li>Αφαίρεση: <?= $escape($path) ?></li><?php endforeach;?><?php foreach(array_keys($pending['migrations']??[]) as $path):?><li>Βάση: <?= $escape($path) ?></li><?php endforeach;?></ul></details>
+<?php if($pending && $pendingOrigin!=='github'):?><hr><p>Νέα έκδοση: <strong><?= $escape($pending['version']) ?></strong></p><p><?= $escape($pending['description']??'') ?></p><details><summary>Αρχεία και μεταβολές βάσης</summary><ul><?php foreach(array_keys($pending['files']??[]) as $path):?><li><?= $escape($path) ?></li><?php endforeach;?><?php foreach(($pending['delete']??[]) as $path):?><li>Αφαίρεση: <?= $escape($path) ?></li><?php endforeach;?><?php foreach(array_keys($pending['migrations']??[]) as $path):?><li>Βάση: <?= $escape($path) ?></li><?php endforeach;?></ul></details>
 <form method="post"><?= csrfField() ?><input type="hidden" name="action" value="update"><label>Πληκτρολογήστε ΕΝΗΜΕΡΩΣΗ<input class="form-control" name="confirm" required></label><label>Κωδικός διαχειριστή<input class="form-control" type="password" name="password" autocomplete="current-password" required></label><button class="btn btn-primary" <?= $state?'disabled':'' ?>>Backup και εφαρμογή ενημέρωσης</button></form><?php endif;?></section>
 <section class="card maintenance-card"><h2>Αντίγραφα ασφαλείας</h2><p>Backup αρχείων και πινάκων, με επαλήθευση αποτυπωμάτων. Περιέχει προσωπικά δεδομένα και τοπικές ρυθμίσεις: φυλάξτε το ιδιωτικά. Τα εξωτερικά ιδιωτικά configs και το κλειδί κρυπτογράφησης δεν περιλαμβάνονται· πρέπει να διατηρούνται χωριστά από τον υπεύθυνο εγκατάστασης.</p>
 <form method="post"><?= csrfField() ?><input type="hidden" name="action" value="backup"><label>Κωδικός διαχειριστή<input class="form-control" type="password" name="password" autocomplete="current-password" required></label><button class="btn btn-secondary" <?= $state?'disabled':'' ?>>Δημιουργία backup</button></form>
