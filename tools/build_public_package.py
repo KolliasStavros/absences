@@ -6,7 +6,7 @@ import argparse, hashlib, json, shutil, zipfile
 def build(destination: Path):
     project=Path(__file__).resolve().parent.parent
     source=project/'public_html' if (project/'public_html').is_dir() else project
-    destination=destination.resolve(); archive=destination.with_suffix('.zip')
+    destination=destination.resolve(); archive=destination.with_name(destination.name+'.zip')
     for folder in ['admin','teacher','api','assets','includes','bin','migrations','config','docs','tools']:
         if destination.is_relative_to(source/folder) or destination.is_relative_to(project/folder):
             raise RuntimeError('The destination must not be inside a source directory being packaged.')
