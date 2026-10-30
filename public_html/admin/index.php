@@ -4,6 +4,7 @@ $pageTitle = 'Ημερήσιο Παρουσιολόγιο & Απουσίες';
 require_once __DIR__ . '/header.php';
 
 $db = getDB();
+require_once __DIR__.'/../includes/email_delivery_state.php';
 require_once __DIR__.'/../includes/attendance_security.php';
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 $dateCheck = is_string($selectedDate) ? DateTime::createFromFormat('!Y-m-d', $selectedDate) : false;
@@ -176,6 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($student['guardian_email'])) $emailsToSend[] = $student['guardian_email'];
             if (!empty($student['guardian_email_2'])) $emailsToSend[] = $student['guardian_email_2'];
 
+            $emailsToSend=array_values(array_unique(array_map('trim',$emailsToSend)));
             if (empty($emailsToSend)) {
                 $failedCount++;
                 continue;
@@ -184,10 +186,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("
                 SELECT id, hour, absence_type, email_notified 
                 FROM attendance 
-                WHERE student_id = ? AND date = ? AND is_absent = 1 
+                WHERE student_id = ? AND date = ? AND academic_year_id = ? AND is_absent = 1 
                 ORDER BY hour ASC
             ");
-            $stmt->execute([$sId, $selectedDate]);
+            $stmt->execute([$sId, $selectedDate,$activeYearId]);
             $absences = $stmt->fetchAll();
 
             if (empty($absences)) continue;
@@ -240,25 +242,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $subject = str_replace(array_keys($replacements), array_values($replacements), $subjectTemplate);
             $message = str_replace(array_keys($replacements), array_values($replacements), $bodyTemplate);
 
-            $studentEmailSuccess = false;
-            foreach ($emailsToSend as $recipientEmail) {
-                $res = sendNotification('email', $recipientEmail, $subject, $message, [
-                    'student_id' => $sId,
-                    'sent_by' => $user['id'],
-                    'hours_summary' => $hoursText
-                ]);
-                if ($res['success']) {
-                    $sentCount++;
-                    $studentEmailSuccess = true;
-                } else {
-                    $failedCount++;
+            $reference=emailDeliveryReference($selectedDate,$absences);
+            $lockName='abs-email-'.substr(hash('sha256',DB_NAME.'|'.(defined('DB_PREFIX')?DB_PREFIX:'').'|'.$sId.'|'.$selectedDate),0,45);
+            $lock=$db->prepare('SELECT GET_LOCK(?,5)');$lock->execute([$lockName]);
+            if((int)$lock->fetchColumn()!==1){$failedCount++;continue;}
+            try {
+                $studentEmailSuccess=true;
+                foreach($emailsToSend as $recipientEmail) {
+                    $prior=$db->prepare("SELECT id FROM notification_logs WHERE channel='email' AND student_id=? AND recipient=? AND hours_summary=? AND BINARY subject=BINARY ? AND BINARY message=BINARY ? AND status='sent' LIMIT 1");
+                    $prior->execute([$sId,$recipientEmail,$reference,$subject,$message]);
+                    if($prior->fetchColumn())continue;
+                    $res=sendNotification('email',$recipientEmail,$subject,$message,['student_id'=>$sId,'sent_by'=>$user['id'],'hours_summary'=>$reference]);
+                    if(!empty($res['success']) && empty($res['simulated'])){$sentCount++;}
+                    else{$studentEmailSuccess=false;$failedCount++;}
                 }
-            }
+                $inClause=implode(',',array_fill(0,count($attIds),'?'));
+                $db->prepare("UPDATE attendance SET email_notified = ?, updated_at=NOW() WHERE academic_year_id=? AND id IN ($inClause)")->execute(array_merge([$studentEmailSuccess?1:0,$activeYearId],$attIds));
+            } finally {$db->prepare('SELECT RELEASE_LOCK(?)')->execute([$lockName]);}
 
-            if ($studentEmailSuccess) {
-                $inClause = implode(',', array_fill(0, count($attIds), '?'));
-                $db->prepare("UPDATE attendance SET email_notified = 1 WHERE id IN ($inClause)")->execute($attIds);
-            }
         }
 
         $actionMessage = "Ολοκληρώθηκε η αποστολή: {$sentCount} email στάλθηκαν επιτυχώς στους κηδεμόνες" . ($failedCount > 0 ? ", {$failedCount} απέτυχαν." : ".");
@@ -467,6 +468,7 @@ while ($nr = $stmtInitialNotes->fetch(PDO::FETCH_ASSOC)) {
 }
 
 // 8. Build $grouped and apply $statusFilter
+$emailDeliveryLog=emailDeliveryLedger($db,$selectedDate,$activeYearId);
 $grouped = [];
 $totalAbsentStudents = 0;
 $totalAbsenceHours = 0;
@@ -499,6 +501,8 @@ foreach ($studentRows as $s) {
             $hasPending = true;
         }
     }
+    $deliveryStatus=emailDeliveryState($emailDeliveryLog,(int)$sid,$selectedDate,$sAtts);
+    if($deliveryStatus==='failed')$hasPending=true;
     if ($hasPending) {
         $totalPendingEmails++;
     }
@@ -580,6 +584,7 @@ foreach ($studentRows as $s) {
         'sections' => $sectionsArr,
         'hours' => $hoursArr,
         'has_pending_email' => $hasPending,
+        'email_delivery_status'=>$deliveryStatus,
         'attendances' => $attendancesList,
             'notes' => $notesByStudent[$sid] ?? [],
         'preview_subject' => '',
@@ -1285,7 +1290,8 @@ foreach ($studentRows as $sr) {
                                                 👁️
                                             </button>
 
-                                            <?php if ($st['has_pending_email']): ?>
+                                            <?php if (($st['email_delivery_status']??'')==='failed'): ?><span class="badge badge-danger" style="font-size:11px;">✕ Αποτυχία</span>
+                                            <?php elseif ($st['has_pending_email']): ?>
                                                 <span class="badge badge-warning" style="font-size:11px;">Εκκρεμεί</span>
                                             <?php else: ?>
                                                 <span class="badge badge-success" style="font-size:11px;">Στάλθηκε</span>
@@ -2377,19 +2383,22 @@ function closeStudentAbsenceModal() {
 }
 
 // Modal 3: Email Preview Handlers
-function showEmailPreview(student) {
-    const recipients = (student.recipients && student.recipients.length > 0) 
-        ? student.recipients.join(', ') 
-        : '⚠️ Δεν έχει οριστεί email κηδεμόνα';
-    
-    document.getElementById('previewModalRecipients').textContent = recipients;
-    document.getElementById('previewModalSubject').textContent = student.preview_subject || '';
-    document.getElementById('previewModalBody').textContent = student.preview_body || '';
-
-    document.getElementById('emailPreviewModal').style.display = 'flex';
+let emailPreviewGeneration=0;
+async function showEmailPreview(student) {
+    const generation=++emailPreviewGeneration;
+    document.getElementById('emailPreviewModal').style.display='flex';
+    const recipients=document.getElementById('previewModalRecipients'),subject=document.getElementById('previewModalSubject'),body=document.getElementById('previewModalBody');
+    recipients.textContent='Φόρτωση στοιχείων…';subject.textContent='';body.textContent='Φόρτωση προεπισκόπησης…';
+    try {
+        const response=await fetch('../api/bulk_notification_preview.php',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':document.querySelector('input[name="csrf_token"]').value},body:JSON.stringify({date:<?= json_encode($selectedDate) ?>,channel:'email',student_ids:[Number(student.student_id)]}),cache:'no-store'});
+        const data=await response.json();if(generation!==emailPreviewGeneration)return;
+        if(!response.ok || !data.items?.[0])throw new Error(data.error||'Δεν φορτώθηκε η προεπισκόπηση.');
+        const item=data.items[0];recipients.textContent=item.recipients.length?item.recipients.join(', '):'⚠️ Δεν έχει οριστεί email κηδεμόνα';subject.textContent=item.subject||'';body.textContent=item.body||item.skipped||'Το πρότυπο email είναι κενό. Ελέγξτε τις ρυθμίσεις email.';
+    } catch(e){if(generation!==emailPreviewGeneration)return;recipients.textContent='Δεν ολοκληρώθηκε η φόρτωση.';subject.textContent='';body.textContent=e.message||'Δοκιμάστε ξανά την προεπισκόπηση.';}
 }
 
 function closeEmailPreviewModal() {
+    emailPreviewGeneration++;
     document.getElementById('emailPreviewModal').style.display = 'none';
 }
 
@@ -2487,7 +2496,7 @@ document.addEventListener('keydown', function(e) {
                     // 2. Update Student Rows in the table
                     if (data.student_attendances) {
                         const recentIds = new Set((data.recent_notifications || []).map(n => n.student_id));
-                        updateAttendanceTable(data.student_attendances, recentIds, data.student_notes || {});
+                        updateAttendanceTable(data.student_attendances, recentIds, data.student_notes || {}, data.email_delivery_statuses || {});
                     }
                     // A failed render must be retried rather than acknowledged as synchronized.
                     currentLiveHash = data.state_hash;
@@ -2554,7 +2563,7 @@ document.addEventListener('keydown', function(e) {
         }
     }
 
-    function updateAttendanceTable(studentAttsMap, recentIds, studentNotesMap = {}) {
+    function updateAttendanceTable(studentAttsMap, recentIds, studentNotesMap = {}, deliveryStates = {}) {
         const tbody = document.getElementById('attendanceTableBody');
         if (!tbody) return;
 
@@ -2565,8 +2574,12 @@ document.addEventListener('keydown', function(e) {
             const notesMap = (studentNotesMap && studentNotesMap[sid]) ? studentNotesMap[sid] : {};
             student.attendances = attList;
             student.notes = notesMap;
+            student.email_delivery_status=deliveryStates[sid]||'pending';
+            window.allStudentsState=window.allStudentsState||{};
+            if(!window.allStudentsState[sid])window.allStudentsState[sid]={...student};
             if (window.allStudentsState && window.allStudentsState[sid]) {
-                window.allStudentsState[sid].attendances = attList;
+                window.allStudentsState[sid].attendances = attList.map(a=>({...a,notified:a.email_notified,teacher:a.teacher_name,section:a.section_name}));
+                window.allStudentsState[sid].email_delivery_status=student.email_delivery_status;
                 window.allStudentsState[sid].notes = notesMap;
             }
             const hasAtt = attList.length > 0;
@@ -2614,7 +2627,8 @@ document.addEventListener('keydown', function(e) {
 
     function updateRowElements(row, sid, student, attList, notesMap) {
         const hasAtt = attList.length > 0;
-        const hasPending = attList.some(a => !a.email_notified);
+        const deliveryFailed=student.email_delivery_status==='failed';
+        const hasPending = deliveryFailed || attList.some(a => !a.email_notified);
         const findCell = (cellId) => (row && row.querySelector ? row.querySelector('#' + cellId) : null) || document.getElementById(cellId);
 
         // 1. Update Hours Cell with Interactive Inline Grid
@@ -2649,7 +2663,7 @@ document.addEventListener('keydown', function(e) {
         const emailCell = findCell('email-cell-' + sid);
         if (emailCell) {
             if (hasAtt) {
-                const emailStatus = hasPending 
+                const emailStatus = deliveryFailed ? '<span class="badge badge-danger" style="font-size:11px;">✕ Αποτυχία</span>' : hasPending 
                     ? '<span class="badge badge-warning" style="font-size:11px;">Εκκρεμεί</span>'
                     : '<span class="badge badge-success" style="font-size:11px;">Στάλθηκε</span>';
                 emailCell.innerHTML = `

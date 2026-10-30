@@ -30,6 +30,9 @@ if (!in_array($statusFilter, $allowedFilters, true)) {
     $statusFilter = 'absent_only';
 }
 
+require_once __DIR__.'/../includes/email_delivery_state.php';
+$emailLedger=emailDeliveryLedger($db,$selectedDate,$activeYearId);
+
 // 1. Check quick state signature
 $stmtState = $db->prepare("
     SELECT 
@@ -53,7 +56,7 @@ $notesStateInfo = $stmtNotesState->fetch(PDO::FETCH_ASSOC);
 
 $maxUpdated = ($stateInfo['max_updated'] ?? 'none') . '_' . ($notesStateInfo['max_note_updated'] ?? 'none');
 $totalRecords = (int)($stateInfo['total_records'] ?? 0) . '_' . (int)($notesStateInfo['total_notes'] ?? 0);
-$serverStateHash = md5($maxUpdated . '_' . $totalRecords . '_' . $filterGradeId . '_' . $filterSectionId . '_' . $statusFilter);
+$serverStateHash = md5($emailLedger['revision'].'_'.$maxUpdated . '_' . $totalRecords . '_' . $filterGradeId . '_' . $filterSectionId . '_' . $statusFilter);
 
 if (!empty($clientHash) && $clientHash === $serverStateHash) {
     // Zero changes, exit immediately with minimal network overhead
@@ -163,6 +166,7 @@ foreach ($attRows as $ar) {
     ];
 }
 
+$deliveryStatuses=[];foreach($studentAttendances as $sid=>$rows)$deliveryStatuses[$sid]=emailDeliveryState($emailLedger,(int)$sid,$selectedDate,$rows);
 $totalAbsentStudents = count($studentsWithAbsences);
 
 // Fetch all students who match grade & section filter to accurately report displayed count
@@ -229,6 +233,7 @@ echo json_encode([
         'total_justified' => $totalJustified,
         'total_pending_emails' => $totalPendingEmails
     ],
+    'email_delivery_statuses'=>(object)$deliveryStatuses,
     'student_attendances' => $studentAttendances,
     'student_notes' => (object)$studentNotes,
     'recent_notifications' => $recentNotifications
