@@ -257,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     else{$studentEmailSuccess=false;$failedCount++;}
                 }
                 $inClause=implode(',',array_fill(0,count($attIds),'?'));
-                $db->prepare("UPDATE attendance SET email_notified = ?, updated_at=NOW() WHERE academic_year_id=? AND id IN ($inClause)")->execute(array_merge([$studentEmailSuccess?1:0,$activeYearId],$attIds));
+                $db->prepare("UPDATE attendance SET email_notified = ? WHERE academic_year_id=? AND id IN ($inClause)")->execute(array_merge([$studentEmailSuccess?1:0,$activeYearId],$attIds));
             } finally {$db->prepare('SELECT RELEASE_LOCK(?)')->execute([$lockName]);}
 
         }
