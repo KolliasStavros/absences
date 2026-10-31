@@ -60,7 +60,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
         <a href="index.php" class="nav-brand">
             <span>🏫</span>
             <div>
-                <div style="display:flex; align-items:center; gap:6px;"><span>Γραμματεία Σχολείου</span><span class="badge badge-gray" style="font-size:10px; font-weight:700;">v1.1</span></div>
+                <div style="display:flex; align-items:center; gap:6px;"><span>Γραμματεία Σχολείου</span><span class="badge badge-gray" style="font-size:10px; font-weight:700;">v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span></div>
                 <div style="font-size:11px; font-weight:normal; color:var(--text-muted);"><?= htmlspecialchars($schoolName) ?></div>
             </div>
         </a>
@@ -71,7 +71,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                 <div class="mobile-account-panel">
                     <strong><?= htmlspecialchars($user['name']) ?></strong>
                     <span><?= isTeacherAdmin() ? 'Καθηγητής - Διαχειριστής' : 'Διαχειριστής' ?></span>
-                    <span>Absences · v1.1</span>
+                    <span>Absences · v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span>
                     <?php if (isAdmin()): ?>
                         <a href="settings.php#admin-profile">⚙️ Ρυθμίσεις λογαριασμού</a>
                     <?php endif; ?>
@@ -117,7 +117,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
             <?php if (isAdmin()): ?>
                 <?php 
                     $isSchoolDataActive = in_array($currentPage, ['students.php', 'sections.php', 'teachers.php', 'import.php']);
-                    $isToolsActive = in_array($currentPage, ['logs.php', 'settings.php', 'help.php', 'maintenance.php', 'technical_errors.php']);
+                    $isToolsActive = in_array($currentPage, ['logs.php', 'settings.php', 'help.php', 'maintenance.php', 'technical_errors.php', 'prints.php']);
                 ?>
                 <!-- Dropdown: Δεδομένα Σχολείου -->
                 <div class="nav-dropdown <?= $isSchoolDataActive ? 'active' : '' ?>">
@@ -165,6 +165,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                         <span class="dropdown-arrow">▾</span>
                     </button>
                     <div class="nav-dropdown-menu">
+                        <a href="prints.php" class="nav-dropdown-item <?= $currentPage === 'prints.php' ? 'active' : '' ?>"><span class="item-icon">🖨️</span><span class="item-text"><strong>Εκτυπώσεις</strong><small>Έντυπα και αιτήσεις</small></span></a>
                         <a href="logs.php" class="nav-dropdown-item <?= $currentPage === 'logs.php' ? 'active' : '' ?>">
                             <span class="item-icon">📜</span>
                             <span class="item-text">
@@ -192,6 +193,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                     </div>
                 </div>
             <?php else: ?>
+                <a href="prints.php" class="nav-tab <?= $currentPage === 'prints.php' ? 'active' : '' ?>">🖨️ Εκτυπώσεις</a>
                 <a href="help.php" class="nav-tab <?= $currentPage === 'help.php' ? 'active' : '' ?>">❓ Βοήθεια &amp; Οδηγός</a>
             <?php endif; ?>
 

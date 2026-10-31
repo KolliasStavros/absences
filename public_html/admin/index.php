@@ -1301,7 +1301,7 @@ foreach ($studentRows as $sr) {
                                         <span style="color:var(--text-muted); font-size:12px;">—</span>
                                     <?php endif; ?>
                                 </td>
-                                <td id="action-cell-<?= $studentId ?>" style="padding:10px 12px; text-align:right;">
+                                <td id="action-cell-<?= $studentId ?>" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(<?= (int)$studentId ?>,'direct')">✉️ Νέο email</button>
                                     <button type="button" class="btn btn-secondary btn-sm" 
                                             style="padding:4px 10px; font-size:12px; font-weight:600;" 
                                             title="Διαχείριση ή Προσθήκη ώρας για αυτόν τον μαθητή"
@@ -1514,12 +1514,15 @@ foreach ($studentRows as $sr) {
         <div id="previewModalBody" style="background:#fff; border:1.5px solid var(--border); border-radius:8px; padding:16px; white-space:pre-wrap; font-family:inherit; font-size:13.5px; line-height:1.6; color:#334155; min-height:120px;">
         </div>
 
-        <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+        <div style="display:flex; justify-content:flex-end; margin-top:20px;"><button type="button" class="btn btn-primary btn-sm" onclick="openStudentEmailComposer(window.emailPreviewStudentId,'absence')">Επεξεργασία μηνύματος / Αποστολή</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick="closeEmailPreviewModal()">Κλείσιμο</button>
         </div>
     </div>
 </div>
 
+<link rel="stylesheet" href="../assets/css/email-composer.css?v=20261030-1">
+<script>window.studentEmailDate=<?= json_encode($selectedDate) ?>;</script>
+<script src="../assets/js/email-composer.js?v=20261030-1" defer></script>
 <!-- Floating Context Menu for Inline Grid Hours -->
 <div id="hourContextMenu" class="hour-context-menu">
     <div style="padding:4px 8px 6px 8px; font-size:11px; font-weight:700; color:var(--text-muted); border-bottom:1px solid #e2e8f0; margin-bottom:4px;">
@@ -2047,7 +2050,7 @@ function updateStudentRowGrid(studentId, sectionId, attendances, previewData, no
     const actionCell = document.getElementById(`action-cell-${studentId}`);
     if (actionCell) {
         const btnLabel = attCount > 0 ? '✏️ Διαχείριση / + Ώρα' : '➕ Προσθήκη Ώρας';
-        actionCell.innerHTML = `
+        actionCell.innerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${studentId},'direct')">✉️ Νέο email</button>
             <button type="button" class="btn btn-secondary btn-sm" 
                     style="padding:4px 10px; font-size:12px; font-weight:600;" 
                     title="Διαχείριση ή Προσθήκη ώρας για αυτόν τον μαθητή"
@@ -2384,7 +2387,9 @@ function closeStudentAbsenceModal() {
 
 // Modal 3: Email Preview Handlers
 let emailPreviewGeneration=0;
+window.emailPreviewStudentId=null;
 async function showEmailPreview(student) {
+    window.emailPreviewStudentId=Number(student.student_id);
     const generation=++emailPreviewGeneration;
     document.getElementById('emailPreviewModal').style.display='flex';
     const recipients=document.getElementById('previewModalRecipients'),subject=document.getElementById('previewModalSubject'),body=document.getElementById('previewModalBody');
@@ -2723,7 +2728,7 @@ document.addEventListener('keydown', function(e) {
             <td id="total-cell-${sid}" style="padding:10px 12px; text-align:center; font-weight:700; font-size:14px;"></td>
             <td style="padding:10px 12px; font-size:12px; line-height:1.4;">${guardiansHtml}</td>
             <td id="email-cell-${sid}" style="padding:10px 12px; text-align:center;"></td>
-            <td id="action-cell-${sid}" style="padding:10px 12px; text-align:right;">
+            <td id="action-cell-${sid}" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${sid},'direct')">✉️ Νέο email</button>
                 <button type="button" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:12px; font-weight:600;" onclick='onLiveManageClick(${sid})'>⚙️ Διαχείριση</button>
             </td>
         `;

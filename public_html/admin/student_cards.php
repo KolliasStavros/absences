@@ -38,10 +38,6 @@ require __DIR__.'/../includes/student_cards_controller.php';
                 </div>
             </form>
         <p class="absence-export-note"><b>Excel / CSV:</b> όλοι οι μαθητές, στο διάστημα που ορίζετε, για το ενεργό σχολικό έτος. Excel ανά ημέρα στο ίδιο φύλλο · CSV συγκεντρωτικά.<br><b>Εκτύπωση:</b> ετήσια στοιχεία με τα φίλτρα προβολής, χωρίς περιορισμό ημερομηνιών.</p>
-        <div class="absence-export-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px" aria-label="Κενά έντυπα δικαιολόγησης">
-            <a class="btn btn-secondary" href="absence_forms.php?type=application" target="_blank" rel="noopener">🖨️ Κενή αίτηση δικαιολόγησης</a>
-            <a class="btn btn-secondary" href="absence_forms.php?type=declaration" target="_blank" rel="noopener">🖨️ Κενή υπεύθυνη δήλωση</a>
-        </div>
     </section>
 </div>
 
@@ -240,6 +236,7 @@ require __DIR__.'/../includes/student_cards_controller.php';
                             </td>
                             <td style="text-align:right; padding-right:22px;" class="no-print">
                                 <div class="absence-row-actions">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="openHistoryEmail(<?= (int)$s['id'] ?>)">✉️ Αποστολή ιστορικού</button>
                                     <?php if (canJustifyAbsences()): ?>
                                     <button 
                                         type="button" 
@@ -343,6 +340,10 @@ require __DIR__.'/../includes/student_cards_controller.php';
     'justificationLabels'=>justificationReasons(), 'unjustifiedLabels'=>unjustifiedReasons(),
     'schoolName'=>$schoolName, 'printDate'=>date('d/m/Y'),
 ], JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
+<?= csrfField() ?>
+<link rel="stylesheet" href="../assets/css/email-composer.css?v=20261031-1">
+<script src="../assets/js/email-composer.js?v=20261031-1" defer></script>
+<script src="../assets/js/history-email.js?v=20261031-1" defer></script>
 <script src="../assets/js/student-cards.js?v=20261028-1"></script>
 
 <script src="../assets/js/absence-calendar.js?v=single-day-1" defer></script>

@@ -123,7 +123,7 @@ if (!headers_sent()) {
 }
 
 define('APP_NAME', 'Παρουσιολόγιο Σχολείου');
-$installedVersion='1.0.5';
+$installedVersion='1.0.6';
 $restoreGeneration='';
 try {
     $maintenanceStore=lifecycleStorage(dirname(__DIR__));

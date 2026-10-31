@@ -13,17 +13,28 @@ $declaration=$type==='declaration';
 <title><?= $declaration ? 'Υπεύθυνη δήλωση κηδεμόνα' : 'Αίτηση δικαιολόγησης απουσιών' ?></title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eef1f5;color:#111;font:11pt/1.4 Arial,sans-serif}.toolbar{max-width:190mm;margin:18px auto;padding:14px;background:white;border-radius:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}.toolbar button{padding:12px 18px;cursor:pointer}.sheet{width:190mm;min-height:270mm;margin:0 auto 20px;background:#fff;padding:7mm 5mm}h1{text-align:center;font-size:17pt;margin:2mm 0}h2{font-size:12pt;margin:5mm 0 2mm}.subtitle{text-align:center;font-size:10pt;margin:0 0 4mm}.recipient{border:1px solid #222;padding:3mm;margin:5mm 0;overflow-wrap:anywhere}.row{display:flex;gap:5mm;margin-bottom:3mm}.row>div{flex:1;min-width:0}.field{border-bottom:1px dotted #555;min-height:9mm;padding-top:1mm}.writing{height:9mm;border-bottom:1px dotted #666}.signature{text-align:right;margin-top:7mm;padding-right:6mm;line-height:2}.small{font-size:8pt;line-height:1.25}.identity{width:100%;border-collapse:collapse;margin:4mm 0}.identity td{border:1px solid #444;padding:2mm;height:10mm;vertical-align:top;font-size:10pt}.bodytext{margin:5mm 0;line-height:1.8}.footnotes{margin-top:7mm;border-top:1px solid #777;padding-top:2mm}a{color:#16477a}@page{size:A4 portrait;margin:12mm 10mm}@media print{body{background:white}.toolbar{display:none!important}.sheet{margin:0;padding:0;width:100%;min-height:0;break-after:avoid}h1,.recipient,.identity,.signature{break-inside:avoid}}@media screen and (max-width:740px){.sheet{margin:0;width:100%;min-height:0;padding:18px}.toolbar{margin:10px}.row{flex-wrap:wrap}.row>div{flex-basis:44%}}
+.declaration-sheet .identity td{font-size:8.5pt;height:10mm;padding:1.5mm;line-height:1.15}.declaration-sheet .bodytext{font-size:10pt;line-height:1.5;margin:3mm 0}.declaration-sheet .writing{height:7mm}.declaration-sheet .signature{margin-top:4mm;line-height:1.6}.declaration-sheet .footnotes{font-size:7pt;margin-top:4mm}.declaration-sheet .recipient{margin:3mm 0;padding:2mm}
 </style></head><body>
-<nav class="toolbar" aria-label="Εκτύπωση εντύπου"><button type="button" onclick="window.print()">Εκτύπωση / Αποθήκευση PDF</button><a href="student_cards.php">Καρτέλες απουσιών</a><span>Α4 κατακόρυφα · Απενεργοποιήστε τις κεφαλίδες/υποσέλιδα του browser.</span></nav>
-<main class="sheet">
+<nav class="toolbar" aria-label="Εκτύπωση εντύπου"><button type="button" onclick="window.print()">Εκτύπωση / Αποθήκευση PDF</button><button type="button" id="closeFormWindow">Κλείσιμο παραθύρου</button><span id="closeFormNotice" role="status" hidden>Κλείστε αυτή την καρτέλα από το × του browser.</span><span>Α4 κατακόρυφα · Απενεργοποιήστε τις κεφαλίδες/υποσέλιδα του browser.</span></nav>
+<main class="sheet <?= $declaration ? 'declaration-sheet' : '' ?>">
 <?php if ($declaration): ?>
 <h1>ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ</h1><p class="subtitle">(άρθρο 8 Ν. 1599/1986)</p>
 <p class="small">Η ακρίβεια των στοιχείων που υποβάλλονται με αυτή τη δήλωση μπορεί να ελεγχθεί με βάση το αρχείο άλλων υπηρεσιών (άρθρο 8, παρ. 4 Ν. 1599/1986).</p>
 <div class="recipient"><b>ΠΡΟΣ:</b> <?= $escape($schoolName) ?></div>
-<table class="identity"><tr><td>Όνομα:</td><td>Επώνυμο:</td></tr><tr><td colspan="2">Όνομα και επώνυμο πατέρα:</td></tr><tr><td colspan="2">Όνομα και επώνυμο μητέρας:</td></tr><tr><td>Ημερομηνία γέννησης (ολογράφως):</td><td>Τόπος γέννησης:</td></tr><tr><td>Αριθμός δελτίου ταυτότητας:</td><td>Τηλέφωνο:</td></tr><tr><td>Τόπος κατοικίας:</td><td>Οδός — Αριθμός — Τ.Κ.:</td></tr><tr><td>Διεύθυνση ηλεκτρονικού ταχυδρομείου:</td><td>Αρ. τηλεομοιοτύπου (Fax):</td></tr></table>
+<table class="identity"><colgroup><col style="width:30%"><col style="width:20%"><col style="width:30%"><col style="width:20%"></colgroup>
+<tr><td colspan="2">Όνομα:</td><td colspan="2">Επώνυμο:</td></tr>
+<tr><td colspan="4">Όνομα και επώνυμο πατέρα:</td></tr>
+<tr><td colspan="4">Όνομα και επώνυμο μητέρας:</td></tr>
+<tr><td colspan="4">Ημερομηνία γέννησης (ολογράφως):</td></tr>
+<tr><td colspan="4">Τόπος γέννησης:</td></tr>
+<tr><td colspan="2">Αριθμός δελτίου ταυτότητας:</td><td colspan="2">Τηλέφωνο:</td></tr>
+<tr><td colspan="4">Τόπος κατοικίας:</td></tr>
+<tr><td colspan="2">Οδός:</td><td>Αριθμός:</td><td>Τ.Κ.:</td></tr>
+<tr><td colspan="4">Διεύθυνση ηλεκτρονικού ταχυδρομείου:</td></tr>
+<tr><td colspan="4">Αρ. τηλεομοιοτύπου (Fax):</td></tr></table>
 <p class="bodytext">Με ατομική μου ευθύνη και γνωρίζοντας τις κυρώσεις που προβλέπονται από τις διατάξεις της παρ. 6 του άρθρου 22 του Ν. 1599/1986, δηλώνω ότι:</p>
 <p class="bodytext">Είμαι κηδεμόνας του/της μαθητή/μαθήτριας ........................................................<br>του τμήματος ................ και οι απουσίες του/της από ........................ έως ........................ οφείλονται στο ότι:</p>
-<?php for ($i=0;$i<4;$i++): ?><div class="writing"></div><?php endfor; ?>
+<?php for ($i=0;$i<6;$i++): ?><div class="writing"></div><?php endfor; ?>
 <div class="signature">Ημερομηνία: ......... / ......... / ................<br>Ο/Η Δηλών/Δηλούσα<br><br>(Υπογραφή)</div>
 <p class="small footnotes">Όποιος εν γνώσει του δηλώνει ψευδή γεγονότα ή αρνείται ή αποκρύπτει τα αληθινά με έγγραφη υπεύθυνη δήλωση του άρθρου 8 τιμωρείται με φυλάκιση τουλάχιστον τριών μηνών. Εάν ο υπαίτιος αυτών των πράξεων σκόπευε να προσπορίσει στον εαυτόν του ή σε άλλον περιουσιακό όφελος βλάπτοντας τρίτον ή σκόπευε να βλάψει άλλον, τιμωρείται με κάθειρξη μέχρι 10 ετών.<br>Σε περίπτωση ανεπάρκειας χώρου η δήλωση συνεχίζεται στην πίσω όψη και υπογράφεται από τον/τη δηλούντα/δηλούσα.</p>
 <?php else: ?>
@@ -36,4 +47,4 @@ $declaration=$type==='declaration';
 <h2>Συνημμένα δικαιολογητικά</h2><div class="field">1.</div><div class="field">2.</div><div class="field">3.</div>
 <div class="signature">Τόπος: ........................................<br>Ημερομηνία: ......... / ......... / ................<br>Ο/Η Αιτών/Αιτούσα<br><br>(Υπογραφή)</div>
 <?php endif; ?>
-</main></body></html>
+</main><script>document.getElementById('closeFormWindow').addEventListener('click',()=>{window.close();setTimeout(()=>{document.getElementById('closeFormNotice').hidden=false;},250);});</script></body></html>
