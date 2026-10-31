@@ -6,7 +6,7 @@
                 🏫 <strong><?= htmlspecialchars($schoolName ?? 'Παρουσιολόγιο & Απουσίες') ?></strong> &bull; Σύστημα Ηλεκτρονικής Καταγραφής Απουσιών
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-                <span class="badge badge-info" style="font-size:11px;">v1.0</span>
+                <span class="badge badge-info" style="font-size:11px;">v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span>
                 <span>Δημιουργός: <strong style="color:var(--text-main);">Κόλλιας Σταύρος</strong> &copy; <?= date('Y') ?></span>
                 <a href="../license.php" style="color:var(--primary);">Άδεια GPLv3</a>
             </div>

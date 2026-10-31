@@ -657,7 +657,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
             <div>
                 <div style="display:flex; align-items:center; gap:6px;">
                     <span class="nav-brand-title">Παρουσιολόγιο</span>
-                    <span class="badge badge-gray nav-version-badge" style="font-size:10px; font-weight:700;">v1.0</span>
+                    <span class="badge badge-gray nav-version-badge" style="font-size:10px; font-weight:700;">v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
                 <div class="nav-school-subtitle" style="font-size:11px; font-weight:normal; color:var(--text-muted);"><?= htmlspecialchars($schoolName) ?></div>
             </div>
@@ -825,7 +825,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                 🏫 <strong><?= htmlspecialchars($schoolName) ?></strong> &bull; Παρουσιολόγιο Τμήματος
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-                <span class="badge badge-info" style="font-size:11px;">v1.0</span>
+                <span class="badge badge-info" style="font-size:11px;">v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span>
                 <span>Δημιουργός: <strong style="color:var(--text-main);">Κόλλιας Σταύρος</strong> &copy; <?= date('Y') ?></span>
                 <a href="../license.php" style="color:var(--primary);">Άδεια GPLv3</a>
             </div>

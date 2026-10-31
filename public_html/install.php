@@ -802,6 +802,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
                     feedback.className = 'feedback-banner feedback-error';
                     feedback.innerHTML = '🔴 Σφάλμα επικοινωνίας με τον server κατά τον έλεγχο: ' + escapeHtml(err.message);
                 } finally {
+                    feedback.style.removeProperty('display');
                     btnTest.disabled = false;
                     document.getElementById('testBtnIcon').textContent = origIcon;
                     document.getElementById('testBtnText').textContent = 'Δοκιμή Σύνδεσης & Ελέγχου Προθέματος';

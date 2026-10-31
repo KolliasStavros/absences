@@ -126,11 +126,11 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                         <span class="dropdown-arrow">▾</span>
                     </button>
                     <div class="nav-dropdown-menu">
-                        <a href="students.php" class="nav-dropdown-item <?= $currentPage === 'students.php' ? 'active' : '' ?>">
-                            <span class="item-icon">🎓</span>
+                        <a href="teachers.php" class="nav-dropdown-item <?= $currentPage === 'teachers.php' ? 'active' : '' ?>">
+                            <span class="item-icon">👥</span>
                             <span class="item-text">
-                                <strong>Μαθητές</strong>
-                                <small>Μητρώο, στοιχεία &amp; κηδεμόνες</small>
+                                <strong>Καθηγητές &amp; Αναθέσεις</strong>
+                                <small>Λογαριασμοί &amp; διδασκαλίες</small>
                             </span>
                         </a>
                         <a href="sections.php" class="nav-dropdown-item <?= $currentPage === 'sections.php' ? 'active' : '' ?>">
@@ -140,19 +140,18 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                                 <small>Διαχείριση τμημάτων ανά τάξη</small>
                             </span>
                         </a>
-                        <a href="teachers.php" class="nav-dropdown-item <?= $currentPage === 'teachers.php' ? 'active' : '' ?>">
-                            <span class="item-icon">👥</span>
-                            <span class="item-text">
-                                <strong>Καθηγητές &amp; Αναθέσεις</strong>
-                                <small>Λογαριασμοί &amp; διδασκαλίες</small>
-                            </span>
-                        </a>
-                        <div class="dropdown-divider"></div>
                         <a href="import.php" class="nav-dropdown-item <?= $currentPage === 'import.php' ? 'active' : '' ?>">
                             <span class="item-icon">📥</span>
                             <span class="item-text">
                                 <strong>Εισαγωγή Excel/CSV</strong>
                                 <small>Μαθητές &amp; καθηγητές myschool</small>
+                            </span>
+                        </a>
+                        <a href="students.php" class="nav-dropdown-item <?= $currentPage === 'students.php' ? 'active' : '' ?>">
+                            <span class="item-icon">🎓</span>
+                            <span class="item-text">
+                                <strong>Μαθητές</strong>
+                                <small>Μητρώο, στοιχεία &amp; κηδεμόνες</small>
                             </span>
                         </a>
                     </div>
@@ -165,19 +164,19 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                         <span class="dropdown-arrow">▾</span>
                     </button>
                     <div class="nav-dropdown-menu">
+                        <a href="settings.php" class="nav-dropdown-item <?= $currentPage === 'settings.php' ? 'active' : '' ?>">
+                            <span class="item-icon">⚙️</span>
+                            <span class="item-text">
+                                <strong>Ρυθμίσεις &amp; Email</strong>
+                                <small>Σχολείο, SMTP, έτη &amp; όρια</small>
+                            </span>
+                        </a>
                         <a href="prints.php" class="nav-dropdown-item <?= $currentPage === 'prints.php' ? 'active' : '' ?>"><span class="item-icon">🖨️</span><span class="item-text"><strong>Εκτυπώσεις</strong><small>Έντυπα και αιτήσεις</small></span></a>
                         <a href="logs.php" class="nav-dropdown-item <?= $currentPage === 'logs.php' ? 'active' : '' ?>">
                             <span class="item-icon">📜</span>
                             <span class="item-text">
                                 <strong>Ιστορικό Ειδοποιήσεων</strong>
                                 <small>Καταγραφή αποστολής email</small>
-                            </span>
-                        </a>
-                        <a href="settings.php" class="nav-dropdown-item <?= $currentPage === 'settings.php' ? 'active' : '' ?>">
-                            <span class="item-icon">⚙️</span>
-                            <span class="item-text">
-                                <strong>Ρυθμίσεις &amp; Email</strong>
-                                <small>Σχολείο, SMTP, έτη &amp; όρια</small>
                             </span>
                         </a>
                         <a href="maintenance.php" class="nav-dropdown-item <?= $currentPage === 'maintenance.php' ? 'active' : '' ?>"><span class="item-icon">🔧</span><span class="item-text"><strong>Ενημερώσεις &amp; Απεγκατάσταση</strong><small>Έλεγχοι, αντίγραφα &amp; συντήρηση</small></span></a>
