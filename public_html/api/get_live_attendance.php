@@ -14,6 +14,8 @@ if (!canManageAnyAttendance()) {
 }
 
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
+$sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 $activeYear = getActiveAcademicYear();
 $activeYearId = $activeYear ? (int)$activeYear['id'] : 1;
 $selectedDate=schoolRequestDate($_GET['date'] ?? date('Y-m-d'));
@@ -173,7 +175,7 @@ $totalAbsentStudents = count($studentsWithAbsences);
 $sqlStudents = "
     SELECT s.id as student_id
     FROM students s
-    LEFT JOIN student_sections ss ON s.id = ss.student_id
+    LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
     LEFT JOIN sections sec ON ss.section_id = sec.id
     LEFT JOIN grades g ON sec.grade_id = g.id
     WHERE s.academic_year_id = ?

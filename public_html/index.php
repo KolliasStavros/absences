@@ -115,7 +115,7 @@ $schoolName = getSchoolSetting('school_name', '1ο Γενικό Λύκειο');
         </form>
 
         <div style="text-align:center; margin-top:24px; padding-top:16px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text-muted); line-height:1.5;">
-            <div>Παρουσιολόγιο &amp; Απουσίες <span style="display:inline-block; background:#e2e8f0; color:#334155; font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:4px;">v1.0</span></div>
+            <div>Παρουσιολόγιο &amp; Απουσίες <span style="display:inline-block; background:#e2e8f0; color:#334155; font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:4px;">v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span></div>
             <div style="margin-top:4px;">Δημιουργός: <strong style="color:var(--text-main);">Κόλλιας Σταύρος</strong> &copy; <?= date('Y') ?></div>
             <div><a href="license.php" style="color:var(--primary);">Άδεια GPLv3 · χωρίς εγγύηση</a></div>
         </div>

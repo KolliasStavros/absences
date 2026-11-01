@@ -35,7 +35,9 @@ function validateAttendanceSection(PDO $db, int $sectionId, int $yearId, array $
 }
 
 function validateAttendanceStudent(PDO $db, int $studentId, int $sectionId, int $yearId): void {
-    $stmt = $db->prepare('SELECT s.id FROM students s JOIN student_sections ss ON ss.student_id=s.id WHERE s.id=? AND s.academic_year_id=? AND ss.section_id=? FOR UPDATE');
+    require_once __DIR__.'/co_teaching.php';
+    $membership=coTeachingMembershipSql(coTeachingGroups($db));
+    $stmt = $db->prepare("SELECT s.id FROM students s JOIN {$membership} ss ON ss.student_id=s.id WHERE s.id=? AND s.academic_year_id=? AND ss.section_id=? FOR UPDATE");
     $stmt->execute([$studentId, $yearId, $sectionId]);
     if (!$stmt->fetchColumn()) attendanceDenied($db, 400, 'Ο μαθητής δεν ανήκει στο ενεργό έτος και τμήμα.');
 }

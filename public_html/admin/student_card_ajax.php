@@ -23,13 +23,15 @@ if ($studentId===null) {
 
 try {
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
+$sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 $activeAcademicYear = getActiveAcademicYear();
 $activeYearId = $activeAcademicYear ? (int)$activeAcademicYear['id'] : 1;
 $stmt = $db->prepare("
     SELECT s.id, s.am, s.last_name, s.first_name, 
            GROUP_CONCAT(DISTINCT sec.name ORDER BY sec.name SEPARATOR ', ') as section_names
     FROM students s
-    LEFT JOIN student_sections ss ON s.id = ss.student_id
+    LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
     LEFT JOIN sections sec ON ss.section_id = sec.id
     WHERE s.id = ? AND s.academic_year_id = ?
     GROUP BY s.id

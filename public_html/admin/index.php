@@ -4,6 +4,8 @@ $pageTitle = 'Ημερήσιο Παρουσιολόγιο & Απουσίες';
 require_once __DIR__ . '/header.php';
 
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
+$sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 require_once __DIR__.'/../includes/email_delivery_state.php';
 require_once __DIR__.'/../includes/attendance_security.php';
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
@@ -115,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 try {
                     if ($sectionId <= 0) {
-                        $secStmt = $db->prepare("SELECT section_id FROM student_sections WHERE student_id = ? LIMIT 1");
+                        $secStmt = $db->prepare("SELECT section_id FROM {$sectionMembershipSql} AS memberships WHERE student_id = ? LIMIT 1");
                         $secStmt->execute([$studentId]);
                         $sectionId = (int)$secStmt->fetchColumn();
                     }
@@ -410,7 +412,7 @@ $studentSql = "
         GROUP_CONCAT(DISTINCT g.id) as grade_ids,
         GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') as grade_names
     FROM students s
-    LEFT JOIN student_sections ss ON s.id = ss.student_id
+    LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
     LEFT JOIN sections sec ON ss.section_id = sec.id
     LEFT JOIN grades g ON sec.grade_id = g.id
     WHERE s.academic_year_id = ?
@@ -637,7 +639,7 @@ $stmtModalStudents = $db->prepare("
            GROUP_CONCAT(DISTINCT sec.id) as section_ids,
            GROUP_CONCAT(DISTINCT sec.name ORDER BY sec.name SEPARATOR ', ') as section_names
     FROM students s
-    LEFT JOIN student_sections ss ON s.id = ss.student_id
+    LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
     LEFT JOIN sections sec ON ss.section_id = sec.id
     WHERE s.academic_year_id = ?
     GROUP BY s.id

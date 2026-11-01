@@ -4,6 +4,8 @@ if (!defined('ABSENCES_STUDENT_CARDS_CONTEXT')) { http_response_code(404); exit;
 require_once __DIR__.'/request_validation.php';
 
 $db = getDB();
+require_once __DIR__.'/co_teaching.php';
+$sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 require_once __DIR__ . '/absence_reasons.php';
 $activeAcademicYear = getActiveAcademicYear();
 $activeYearId = $activeAcademicYear ? (int)$activeAcademicYear['id'] : 1;
@@ -110,7 +112,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $exportRangeValid) {
             COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'justified' THEN a.id END) as justified,
             COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'expulsion' THEN a.id END) as expulsions
         FROM students s
-        LEFT JOIN student_sections ss ON s.id = ss.student_id
+        LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
         LEFT JOIN sections sec ON ss.section_id = sec.id
         LEFT JOIN attendance a ON s.id = a.student_id AND a.academic_year_id = ? $csvDateWhere
         WHERE s.academic_year_id = ?
@@ -180,12 +182,12 @@ $whereClauses = ["s.academic_year_id = ?"];
 $params = [$activeYearId, $activeYearId]; // First for attendance join, second for students
 
 if ($filterGradeId > 0) {
-    $whereClauses[] = "EXISTS (SELECT 1 FROM student_sections ss2 JOIN sections sec2 ON ss2.section_id = sec2.id WHERE ss2.student_id = s.id AND sec2.grade_id = ?)";
+    $whereClauses[] = "EXISTS (SELECT 1 FROM {$sectionMembershipSql} ss2 JOIN sections sec2 ON ss2.section_id = sec2.id WHERE ss2.student_id = s.id AND sec2.grade_id = ?)";
     $params[] = $filterGradeId;
 }
 
 if ($filterSectionId > 0) {
-    $whereClauses[] = "EXISTS (SELECT 1 FROM student_sections ss3 WHERE ss3.student_id = s.id AND ss3.section_id = ?)";
+    $whereClauses[] = "EXISTS (SELECT 1 FROM {$sectionMembershipSql} ss3 WHERE ss3.student_id = s.id AND ss3.section_id = ?)";
     $params[] = $filterSectionId;
 }
 
@@ -209,7 +211,7 @@ $studentsQuery = "
         COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'expulsion' THEN a.id END) as expulsions,
         MAX(a.date) as last_absence_date
     FROM students s
-    LEFT JOIN student_sections ss ON s.id = ss.student_id
+    LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
     LEFT JOIN sections sec ON ss.section_id = sec.id
     LEFT JOIN attendance a ON s.id = a.student_id AND a.academic_year_id = ?
     WHERE {$whereSql}

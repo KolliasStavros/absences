@@ -27,6 +27,8 @@ if ($emptySection) schoolJsonResponse(['students'=>[]]);
 if ($sectionId===null) schoolJsonResponse(['error'=>'Μη έγκυρο τμήμα.'],400);
 
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
+$sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 $activeYear = getActiveAcademicYear();
 $activeYearId = $activeYear ? (int)$activeYear['id'] : 1;
 
@@ -45,9 +47,9 @@ if ($user['role'] === 'teacher') {
 $stmt = $db->prepare("
     SELECT s.id, s.am, s.last_name, s.first_name, s.father_name, s.mother_name, s.gender
     FROM students s
-    JOIN student_sections ss ON s.id = ss.student_id
+    JOIN {$sectionMembershipSql} ss ON s.id = ss.student_id
     WHERE ss.section_id = ? AND s.academic_year_id = ?
-    ORDER BY s.last_name ASC, s.first_name ASC
+    ORDER BY s.last_name ASC, s.first_name ASC, s.am ASC, s.id ASC
 ");
 $stmt->execute([$sectionId, $activeYearId]);
 $students = $stmt->fetchAll();
@@ -57,7 +59,7 @@ $stmt = $db->prepare("
     SELECT a.student_id, a.is_absent, a.absence_type, a.teacher_id, u.name as teacher_name
     FROM attendance a
     LEFT JOIN users u ON a.teacher_id = u.id
-    WHERE a.date = ? AND a.hour = ? AND a.student_id IN (SELECT student_id FROM student_sections WHERE section_id = ?) AND a.academic_year_id = ?
+    WHERE a.date = ? AND a.hour = ? AND a.student_id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?) AND a.academic_year_id = ?
 ");
 $stmt->execute([$date, $hour, $sectionId, $activeYearId]);
 $rows = $stmt->fetchAll();
@@ -129,7 +131,7 @@ $stmtDay = $db->prepare("
     FROM attendance a
     LEFT JOIN users u ON a.teacher_id = u.id
     WHERE a.date = ? 
-      AND a.student_id IN (SELECT student_id FROM student_sections WHERE section_id = ?) 
+      AND a.student_id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?) 
       AND a.academic_year_id = ?
 ");
 $stmtDay->execute([$date, $sectionId, $activeYearId]);

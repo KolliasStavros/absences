@@ -33,18 +33,20 @@ if ($date===null) schoolJsonResponse(['error'=>'Μη έγκυρη μορφή η�
 if ($sectionId===null || $hour===null) schoolJsonResponse(['error'=>'Μη έγκυρο τμήμα ή διδακτική ώρα'],400);
 
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
 $activeYear = getActiveAcademicYear();
 $activeYearId = $activeYear ? (int)$activeYear['id'] : 1;
 
 try {
     $user = beginAttendanceMutation($db, $activeYearId);
+    $sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
     validateAttendanceSection($db, $sectionId, $activeYearId, $user);
 
     // Ownership check: If attendance already exists for this hour, only the creator or admin/teacher_admin can modify it
     $stmtExisting = $db->prepare("
         SELECT teacher_id 
         FROM attendance 
-        WHERE date = ? AND hour = ? AND student_id IN (SELECT student_id FROM student_sections WHERE section_id = ?) AND academic_year_id = ?
+        WHERE date = ? AND hour = ? AND student_id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?) AND academic_year_id = ?
         AND teacher_id != ?
         LIMIT 1
     ");
@@ -59,7 +61,7 @@ try {
     $stmtJustified = $db->prepare("
         SELECT student_id 
         FROM attendance 
-        WHERE date = ? AND hour = ? AND student_id IN (SELECT student_id FROM student_sections WHERE section_id = ?) AND academic_year_id = ? AND absence_type = 'justified' AND is_absent = 1
+        WHERE date = ? AND hour = ? AND student_id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?) AND academic_year_id = ? AND absence_type = 'justified' AND is_absent = 1
     ");
     $stmtJustified->execute([$date, $hour, $sectionId, $activeYearId]);
     $alreadyJustifiedStudentIds = $stmtJustified->fetchAll(PDO::FETCH_COLUMN);
@@ -67,7 +69,7 @@ try {
     // Fetch all students in this section for the active academic year
     $stmt = $db->prepare("
         SELECT ss.student_id 
-        FROM student_sections ss
+        FROM {$sectionMembershipSql} ss
         JOIN students s ON ss.student_id = s.id
         WHERE ss.section_id = ? AND s.academic_year_id = ?
         FOR UPDATE

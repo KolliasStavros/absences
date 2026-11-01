@@ -4,6 +4,10 @@ $pageTitle = 'Τμήματα & Τάξεις';
 require_once __DIR__ . '/header.php';
 
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
+require_once __DIR__.'/../includes/request_validation.php';
+$activeYearId=(int)getActiveAcademicYear()['id'];
+$coGroups=coTeachingGroups($db);
 $message = '';
 $error = '';
 
@@ -12,6 +16,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Μη έγκυρο αίτημα ασφαλείας (CSRF Token mismatch). Παρακαλώ ανανεώστε τη σελίδα.';
     } else {
+        if (isset($_POST['save_co_teaching'])) {
+            try {
+                $id=schoolOptionalRequestId($_POST['co_section_id']??null);
+                $grade=schoolRequestId($_POST['co_grade_id']??null);
+                $name=$_POST['co_name']??null;$values=$_POST['co_sources']??null;
+                if($id===null||$grade===null||!is_string($name)||!is_array($values))throw new DomainException('Ελέγξτε όνομα, τάξη και τμήματα.');
+                $sources=[];foreach($values as $value){$source=schoolRequestId($value);if($source===null)throw new DomainException('Μη έγκυρο τμήμα.');$sources[]=$source;}
+                coTeachingSave($db,$activeYearId,$id,$grade,$name,$sources);
+                $message='Η συνδιδασκαλία αποθηκεύτηκε. Οι μαθητές αντλούνται αυτόματα από τα επιλεγμένα τμήματα. Ορίστε αναθέσεις καθηγητών για το νέο τμήμα.';
+                $coGroups=coTeachingGroups($db);
+            }catch(Throwable $e){$error=$e instanceof DomainException?$e->getMessage():'Δεν αποθηκεύτηκε η συνδιδασκαλία. Ελέγξτε μήπως υπάρχει ήδη το ίδιο όνομα στην τάξη.';}
+        }
+
         // 1. Handle Add Section
         if (isset($_POST['add_section'])) {
             $name = trim($_POST['name'] ?? '');
@@ -40,45 +57,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Παρακαλώ συμπληρώστε όλα τα πεδία.';
             } else {
                 try {
+                    if(isset($coGroups[$secId]))throw new DomainException('Χρησιμοποιήστε την επεξεργασία συνδιδασκαλίας.');
+                    foreach($coGroups as $target=>$sources)if(in_array($secId,$sources,true)){
+                        $check=$db->prepare('SELECT grade_id FROM sections WHERE id=?');$check->execute([$target]);
+                        if((int)$check->fetchColumn()!==$gradeId)throw new DomainException('Δεν αλλάζει η τάξη τμήματος που συμμετέχει σε συνδιδασκαλία άλλης τάξης.');
+                    }
                     $stmt = $db->prepare("UPDATE sections SET name = ?, grade_id = ? WHERE id = ?");
                     $stmt->execute([$name, $gradeId, $secId]);
                     $message = "Το τμήμα ενημερώθηκε επιτυχώς σε «{$name}»!";
                 } catch (Exception $e) {
-                    $error = "Σφάλμα ενημέρωσης: πιθανόν υπάρχει ήδη τμήμα με αυτό το όνομα στην ίδια τάξη.";
+                    $error = $e instanceof DomainException ? $e->getMessage() : "Σφάλμα ενημέρωσης: πιθανόν υπάρχει ήδη τμήμα με αυτό το όνομα στην ίδια τάξη.";
                 }
             }
         }
 
-        // 3. Handle Delete Section - DATA-01: Protect historical attendance records from CASCADE deletion
+        // Preserve attendance and source compositions on deletion.
         if (isset($_POST['delete_section'])) {
-            $secId = (int)$_POST['section_id'];
             try {
-                $stmt = $db->prepare("SELECT name FROM sections WHERE id = ?");
-                $stmt->execute([$secId]);
-                $sec = $stmt->fetch();
-                if ($sec) {
-                    // Check if section has attendance records
-                    $stmtAtt = $db->prepare("SELECT COUNT(*) FROM attendance WHERE section_id = ?");
-                    $stmtAtt->execute([$secId]);
-                    $attCount = (int)$stmtAtt->fetchColumn();
-
-                    // Check if section has enrolled students
-                    $stmtStu = $db->prepare("SELECT COUNT(*) FROM student_sections WHERE section_id = ?");
-                    $stmtStu->execute([$secId]);
-                    $stuCount = (int)$stmtStu->fetchColumn();
-
-                    if ($attCount > 0) {
-                        $error = "Δεν είναι δυνατή η διαγραφή του τμήματος «{$sec['name']}» επειδή περιέχει {$attCount} καταχωρημένες απουσίες. Το ιστορικό απουσιών προστατεύεται από οριστική διαγραφή.";
-                    } elseif ($stuCount > 0) {
-                        $error = "Δεν είναι δυνατή η διαγραφή του τμήματος «{$sec['name']}» επειδή είναι εγγεγραμμένοι {$stuCount} μαθητές. Αποσυνδέστε πρώτα τους μαθητές.";
-                    } else {
-                        $db->prepare("DELETE FROM sections WHERE id = ?")->execute([$secId]);
-                        $message = "Το τμήμα «{$sec['name']}» διαγράφηκε επιτυχώς.";
-                    }
-                }
-            } catch (Exception $e) {
-                $error = "Σφάλμα διαγραφής: " . safeError($e);
-            }
+                $id=schoolRequestId($_POST['section_id']??null);if($id===null)throw new DomainException('Μη έγκυρο τμήμα.');
+                coTeachingDelete($db,$activeYearId,$id);$coGroups=coTeachingGroups($db);$message='Το τμήμα διαγράφηκε.';
+            }catch(Throwable $e){$error=$e instanceof DomainException?$e->getMessage():'Δεν ολοκληρώθηκε η διαγραφή.';}
         }
 
         // 4. Handle Add Grade
@@ -121,6 +119,8 @@ $activeAcademicYear = getActiveAcademicYear();
 $activeYearId = $activeAcademicYear ? (int)$activeAcademicYear['id'] : 1;
 $grades = $db->query("SELECT * FROM grades ORDER BY name ASC")->fetchAll();
 
+$sectionMembershipSql=coTeachingMembershipSql($coGroups);
+
 // Fetch sections with student count & teachers for the active academic year
 $sectionsQuery = "
     SELECT 
@@ -132,7 +132,7 @@ $sectionsQuery = "
         GROUP_CONCAT(DISTINCT u.name ORDER BY u.name SEPARATOR ', ') as teachers_list
     FROM sections s
     JOIN grades g ON s.grade_id = g.id
-    LEFT JOIN student_sections ss ON s.id = ss.section_id
+    LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.section_id
     LEFT JOIN students stu ON (ss.student_id = stu.id AND stu.academic_year_id = ?)
     LEFT JOIN teacher_sections ts ON (s.id = ts.section_id AND ts.academic_year_id = ?)
     LEFT JOIN users u ON ts.teacher_id = u.id
@@ -156,9 +156,12 @@ $sections = $stmtSections->fetchAll();
     <div class="card">
         <div class="card-title">
             <span>🏫 Σχολικά Τμήματα (<?= count($sections) ?>)</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
             <button type="button" class="btn btn-primary btn-sm" onclick="openAddSectionModal()">
                 ➕ Νέο Τμήμα
             </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openCoTeachingModal()">Συνδιδασκαλίες</button>
+            </div>
         </div>
 
         <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
@@ -191,6 +194,9 @@ $sections = $stmtSections->fetchAll();
                             <tr class="section-item">
                                 <td>
                                     <strong><?= htmlspecialchars($s['section_name']) ?></strong>
+                                    <?php if(isset($coGroups[(int)$s['id']])): ?>
+                                    <small style="display:block;color:var(--text-muted);">Συνδιδασκαλία: <?= htmlspecialchars(implode(' + ',array_map(static function($id)use($sections){foreach($sections as $source)if((int)$source['id']===$id)return $source['section_name'];return '—';},$coGroups[(int)$s['id']]))) ?></small>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <span class="badge badge-info">Τάξη <?= htmlspecialchars($s['grade_name']) ?></span>
@@ -306,6 +312,23 @@ $sections = $stmtSections->fetchAll();
     </div>
 </div>
 
+<dialog id="coTeachingModal" aria-labelledby="coTeachingTitle" style="width:min(580px,94vw);max-height:85vh;overflow:auto;border:0;border-radius:14px;padding:24px;background:var(--bg-card,#fff);color:var(--text-main);">
+<h3 id="coTeachingTitle">Συνδιδασκαλίες</h3>
+<p style="font-size:13px;line-height:1.6;">Ορίστε όνομα και τουλάχιστον δύο τμήματα της ίδιας τάξης. Οι μαθητές εμφανίζονται αυτόματα μία φορά, αλφαβητικά. Οι αλλαγές στις εγγραφές των αρχικών τμημάτων εφαρμόζονται και εδώ.</p>
+<form method="post" id="coTeachingForm" action="sections.php">
+<?= csrfField() ?>
+<input type="hidden" name="co_section_id" id="coSectionId" value="">
+<div class="form-group"><label for="coGrade">Τάξη *</label><select id="coGrade" name="co_grade_id" class="form-control" required><option value="">Επιλέξτε τάξη</option><?php foreach($grades as $grade): ?><option value="<?= (int)$grade['id'] ?>"><?= htmlspecialchars($grade['name']) ?></option><?php endforeach; ?></select></div>
+<div class="form-group"><label for="coName">Όνομα συνδιδασκαλίας *</label><input id="coName" name="co_name" class="form-control" maxlength="100" placeholder="π.χ. Α1 + Α2 — Συνδιδασκαλία" required></div>
+<fieldset style="border:1px solid var(--border);border-radius:8px;padding:14px;"><legend>Τμήματα που θα ενωθούν *</legend><div id="coSources"></div></fieldset>
+<p id="coStatus" role="status" style="font-size:13px;"></p>
+<p style="font-size:12px;color:var(--text-muted);">Οι εκπαιδευτικοί χρειάζονται ανάθεση στο νέο τμήμα από «Καθηγητές &amp; Αναθέσεις». Αν υπάρχουν καταχωρίσεις παρουσιολογίου στη συνδιδασκαλία, αλλάζει μόνο το όνομά της.</p>
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;"><button type="button" class="btn btn-secondary" onclick="document.getElementById('coTeachingModal').close()">Ακύρωση</button><button type="submit" class="btn btn-primary" name="save_co_teaching">Αποθήκευση</button></div>
+</form></dialog>
+<style>#coTeachingModal::backdrop{background:rgba(15,23,42,.55)}#coSources label{display:flex;gap:10px;align-items:center;padding:8px}#coSources input{width:auto}</style>
+<script type="application/json" id="coTeachingConfig"><?= json_encode(['groups'=>(object)$coGroups,'sections'=>$sections],JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
+<script src="../assets/js/co-teaching.js?v=20261101-1"></script>
+
 <script>
     function openAddSectionModal() {
         document.getElementById('sectionModalTitle').textContent = '➕ Προσθήκη Νέου Τμήματος';
@@ -318,6 +341,7 @@ $sections = $stmtSections->fetchAll();
     }
 
     function openEditSectionModal(sec) {
+        if(coTeachingConfig.groups[sec.id]){openCoTeachingModal(sec);return;}
         document.getElementById('sectionModalTitle').textContent = '✏️ Επεξεργασία Τμήματος: ' + sec.section_name;
         document.getElementById('formSectionId').value = sec.id;
         document.getElementById('formSectionName').value = sec.section_name;

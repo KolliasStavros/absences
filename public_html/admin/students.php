@@ -4,6 +4,8 @@ $pageTitle = 'Διαχείριση Μαθητών';
 require_once __DIR__ . '/header.php';
 
 $db = getDB();
+require_once __DIR__.'/../includes/co_teaching.php';
+$coGroups=coTeachingGroups($db);
 $activeAcademicYear = getActiveAcademicYear();
 $activeYearId = $activeAcademicYear ? (int)$activeAcademicYear['id'] : 1;
 $message = '';
@@ -32,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $guardianEmail2 = trim($_POST['guardian_email_2'] ?? '');
             $guardianMobile2 = trim($_POST['guardian_mobile_2'] ?? '');
             $selectedSections = $_POST['sections'] ?? [];
+            if(is_array($selectedSections))$selectedSections=array_values(array_filter($selectedSections,static fn($id)=>!is_scalar($id)||!isset($coGroups[(int)$id])));
 
             if (empty($am) || empty($lastName) || empty($firstName)) {
                 $error = 'Παρακαλώ συμπληρώστε τα υποχρεωτικά πεδία (Α.Μ., Επώνυμο, Όνομα).';
@@ -104,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $guardianEmail2 = trim($_POST['guardian_email_2'] ?? '');
             $guardianMobile2 = trim($_POST['guardian_mobile_2'] ?? '');
             $selectedSections = $_POST['sections'] ?? [];
+            if(is_array($selectedSections))$selectedSections=array_values(array_filter($selectedSections,static fn($id)=>!is_scalar($id)||!isset($coGroups[(int)$id])));
 
             if ($studentId <= 0 || empty($am) || empty($lastName) || empty($firstName)) {
                 $error = 'Παρακαλώ συμπληρώστε τα υποχρεωτικά πεδία (Α.Μ., Επώνυμο, Όνομα).';
@@ -211,10 +215,12 @@ $sql = "
     LEFT JOIN sections sec ON ss.section_id = sec.id
     WHERE s.academic_year_id = ?
 ";
+require_once __DIR__.'/../includes/co_teaching.php';
+$sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 $params = [$activeYearId];
 
 if ($selectedSection > 0) {
-    $sql .= " AND s.id IN (SELECT student_id FROM student_sections WHERE section_id = ?)";
+    $sql .= " AND s.id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?)";
     $params[] = $selectedSection;
 }
 
@@ -507,6 +513,7 @@ if ($contactFilter!=='all') $students=array_values(array_filter($students,static
                         <div style="font-size:12px; color:var(--text-muted);">Δεν υπάρχουν ακόμη τμήματα.</div>
                     <?php else: ?>
                         <?php foreach ($allSections as $sec): ?>
+                            <?php if(isset($coGroups[(int)$sec['id']]))continue; ?>
                             <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin-bottom:6px; font-size:13px; cursor:pointer;">
                                 <input type="checkbox" name="sections[]" value="<?= $sec['id'] ?>" class="modal-student-sec-check" id="sec_check_<?= $sec['id'] ?>">
                                 <span><?= htmlspecialchars($sec['name']) ?> (Τάξη <?= htmlspecialchars($sec['grade_name']) ?>)</span>
