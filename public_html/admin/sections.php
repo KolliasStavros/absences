@@ -160,7 +160,7 @@ $sections = $stmtSections->fetchAll();
             <button type="button" class="btn btn-primary btn-sm" onclick="openAddSectionModal()">
                 ➕ Νέο Τμήμα
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="openCoTeachingModal()">Συνδιδασκαλίες</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openCoTeachingModal()">Συνδιδασκαλίες</button>
             </div>
         </div>
 

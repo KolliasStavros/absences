@@ -159,6 +159,14 @@ $pageTitle='Ενημερώσεις & Απεγκατάσταση';require __DIR__
 <h1 style="font-size:24px;margin-bottom:16px">Ενημερώσεις &amp; Απεγκατάσταση</h1>
 <p>Έκδοση <?= $escape(APP_VERSION) ?> · Μόνο για διαχειριστές συστήματος. Κάθε ενέργεια απαιτεί ξανά τον προσωπικό σας κωδικό.</p>
 <?php if($error):?><p role="alert" class="maintenance-alert"><?= $escape($error) ?></p><?php endif;?>
+<?php
+$keyErrors=[$error,$githubError,!empty($githubCheck['failed']) ? ($githubCheck['error']??'') : ''];
+$keySupportNeeded=false;
+foreach($keyErrors as $keyError) {
+    if(in_array($keyError,['Η υπογραφή του πακέτου δεν είναι έγκυρη.','Ορίστε πρώτα το έμπιστο δημόσιο κλειδί εκδόσεων.'],true))$keySupportNeeded=true;
+}
+?>
+<?php if($keySupportNeeded):?><p role="alert" class="maintenance-alert">Δεν ήταν δυνατή η επαλήθευση της ενημέρωσης. Το δημόσιο κλειδί μπορεί να λείπει ή να έχει αλλάξει· ενδέχεται επίσης το πακέτο να είναι αλλοιωμένο. Στείλτε email στο <a href="mailto:lykeio.edu@gmail.com?subject=Absences%20-%20%CE%94%CE%B7%CE%BC%CF%8C%CF%83%CE%B9%CE%BF%20%CE%BA%CE%BB%CE%B5%CE%B9%CE%B4%CE%AF%20%CE%B5%CE%BD%CE%B7%CE%BC%CE%B5%CF%81%CF%8E%CF%83%CE%B5%CF%89%CE%BD">lykeio.edu@gmail.com</a> για να σας στείλουμε το ισχύον δημόσιο κλειδί και οδηγίες. Αναφέρετε την έκδοση της εφαρμογής και το μήνυμα σφάλματος, χωρίς κωδικούς ή δεδομένα μαθητών. Η εγκατάσταση δεν επιτρέπεται χωρίς έγκυρη υπογραφή.</p><?php endif;?>
 <?php if($message):?><p role="status" class="maintenance-alert"><?= $escape($message) ?></p><?php endif;?>
 <?php if($state):?><p class="maintenance-alert">Η εφαρμογή βρίσκεται σε συντήρηση. <?= $escape($phaseLabels[$state['phase']] ?? 'Απαιτείται έλεγχος από τον υπεύθυνο εγκατάστασης') ?>. Οι καταχωρήσεις των χρηστών έχουν προσωρινά σταματήσει.</p><?php endif;?>
 <div class="maintenance-grid">
