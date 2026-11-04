@@ -1,24 +1,13 @@
 <?php
+require_once __DIR__ . "/absence_types.php";
 // Render only: the same template substitutions as consolidated email sending.
 function buildBulkEmailPreview(array $student, array $absences, string $selectedDate): array {
     $schoolName = getSchoolSetting('school_name', 'Παρουσιολόγιο Σχολείου');
     $schoolPhone = getSchoolSetting('school_phone', '');
     $maskStudentName = getSchoolSetting('mask_student_name', '0') === '1';
     $subjectTemplate = getSchoolSetting('email_template_subject', 'Ενημέρωση Απουσιών Μαθητή - {school_name}');
-    $bodyTemplate = getSchoolSetting('email_template_body', '');
-            $hourLabels = [];
-            $attIds = [];
-            foreach ($absences as $a) {
-                $lbl = $a['hour'] . 'η';
-                if ($a['absence_type'] === 'expulsion') {
-                    $lbl .= ' (Αποβολή)';
-                } elseif ($a['absence_type'] === 'justified') {
-                    $lbl .= ' (Δικαιολογημένη)';
-                }
-                $hourLabels[] = $lbl;
-                $attIds[] = $a['id'];
-            }
-            $hoursText = implode(', ', $hourLabels);
+    $bodyTemplate = str_replace('{hours}.', '{hours}', getSchoolSetting('email_template_body', defaultAbsenceEmailTemplate()));
+            $hoursText = absenceEmailHours($absences);
 
             $gender = $student['gender'] ?? 'male';
             $studentTitle = get_student_title($gender);

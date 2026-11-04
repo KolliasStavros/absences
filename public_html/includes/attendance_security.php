@@ -43,9 +43,9 @@ function validateAttendanceStudent(PDO $db, int $studentId, int $sectionId, int 
 }
 
 function assertMutableAttendanceHours(PDO $db, int $studentId, string $date, int $yearId, array $hours): void {
-    $stmt=$db->prepare("SELECT hour FROM attendance WHERE student_id=? AND date=? AND academic_year_id=? AND is_absent=1 AND absence_type='justified' FOR UPDATE");
+    $stmt=$db->prepare("SELECT hour FROM attendance WHERE student_id=? AND date=? AND academic_year_id=? AND is_absent=1 AND absence_type IN ('justified','leave') FOR UPDATE");
     $stmt->execute([$studentId,$date,$yearId]);
     if (!canJustifyAbsences() && array_intersect($hours,array_map('intval',$stmt->fetchAll(PDO::FETCH_COLUMN)))) {
-        attendanceDenied($db,403,'Οι δικαιολογημένες απουσίες προστατεύονται.');
+        attendanceDenied($db,403,'Οι δικαιολογημένες απουσίες και οι άδειες προστατεύονται.');
     }
 }

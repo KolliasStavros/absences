@@ -27,7 +27,7 @@ $clientHash=trim($rawHash);$statusFilter=trim($statusFilter);
 $filterGradeId=schoolOptionalRequestId($_GET['grade_id'] ?? null);
 $filterSectionId=schoolOptionalRequestId($_GET['section_id'] ?? null);
 if ($filterGradeId===null || $filterSectionId===null) schoolJsonResponse(['error'=>'Μη έγκυρη τάξη ή τμήμα.'],400);
-$allowedFilters = ['all', 'absent_only', 'present_only', 'expulsion_only', 'justified_only'];
+$allowedFilters = ['all', 'absent_only', 'present_only', 'expulsion_only', 'justified_only', 'leave_only'];
 if (!in_array($statusFilter, $allowedFilters, true)) {
     $statusFilter = 'absent_only';
 }
@@ -163,7 +163,7 @@ foreach ($attRows as $ar) {
         'section_name' => $ar['section_name'],
         'teacher_name' => $ar['teacher_name'],
         'absence_type' => $ar['absence_type'] ?: 'absent',
-        'note' => $studentNotes[$sid][(int)$ar['hour']] ?? null,
+        'note' => $studentNotes[$sid][(int)$ar['hour']] ?? $ar['note'] ?? null,
         'email_notified' => (int)$ar['email_notified']
     ];
 }
@@ -204,6 +204,10 @@ foreach ($allFilteredStudentIds as $sId) {
         $displayedCount++;
     } elseif ($statusFilter === 'present_only' && !$hasAbs) {
         $displayedCount++;
+    } elseif ($statusFilter === 'leave_only') {
+        foreach (($studentAttendances[$sId] ?? []) as $a) {
+            if ($a['absence_type'] === 'leave') { $displayedCount++; break; }
+        }
     } elseif ($statusFilter === 'expulsion_only') {
         $atts = $studentAttendances[$sId] ?? [];
         foreach ($atts as $a) {

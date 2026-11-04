@@ -1,7 +1,6 @@
 /* Presentation only; attendance actions and form fields stay unchanged. */
-.attendance-page .dashboard-page-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.attendance-page .dashboard-page-actions { display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; margin-left:auto; }
 .attendance-page .dashboard-page-actions .btn { min-height:44px; justify-content:center; }
-.attendance-page .dashboard-class-link { white-space:nowrap; margin-left:auto; }
 @media screen and (max-width:768px) { .attendance-page .dashboard-page-actions { width:100%; } }
 @media screen {
     .attendance-page .attendance-kpis { gap:10px !important; margin-bottom:14px !important; }
@@ -42,6 +41,29 @@
     }
 }
 @media screen and (max-width: 768px) {
+    .attendance-page .student-attendance-row {
+        grid-template-columns: 32px minmax(0, 1fr) 94px;
+    }
+    .attendance-page .student-attendance-row > td:nth-child(4) { overflow-x: visible; }
+    .attendance-page .inline-hours-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.3fr);
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        gap: 3px;
+        padding: 3px;
+    }
+    .attendance-page .inline-hours-grid .btn-hour-pill,
+    .attendance-page .inline-hours-grid .btn-hour-all {
+        width: 100%;
+        min-width: 0;
+        height: 44px;
+        margin: 0;
+        padding: 0 2px;
+    }
+    .attendance-page [id^="action-cell-"] > button { padding: 4px 6px !important; }
     .attendance-page .attendance-filters .form-control,
     .attendance-page #newAbsenceModal .form-control,
     .attendance-page #studentAbsenceModal .form-control,

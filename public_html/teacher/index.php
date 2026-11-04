@@ -154,6 +154,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
         .student-card.day-summary {
             --day-present-bg: #f0fdf4;
             --day-absent-bg: #fef2f2;
+            --day-leave-bg: #dcfce7;
             --day-expulsion-bg: #fffbeb;
             --day-justified-bg: #eff6ff;
             background: var(--day-card-background);
@@ -165,6 +166,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
         [data-theme="dark"] .student-card.day-summary {
             --day-present-bg: #102c25;
             --day-absent-bg: #38202a;
+            --day-leave-bg: #163726;
             --day-expulsion-bg: #352b1b;
             --day-justified-bg: #172c46;
             background: var(--day-card-background);
@@ -645,53 +647,15 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                 grid-column: 1 / -1 !important;
             }
         }
+    .student-card.leave,.hour-pill-btn.leave {background:#dcfce7;color:#166534;border-color:#86efac;}
+        .student-card.leave .status-pill {background:#dcfce7;color:#166534;}
     </style>
     <link rel="stylesheet" href="../assets/css/attendance-responsive.css?v=20261029-1">
 </head>
 <body class="teacher-attendance-page">
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <nav class="app-navbar">
-        <a href="index.php" class="nav-brand">
-            <span>📋</span>
-            <div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <span class="nav-brand-title">Παρουσιολόγιο</span>
-                    <span class="badge badge-gray nav-version-badge" style="font-size:10px; font-weight:700;">v<?= htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8') ?></span>
-                </div>
-                <div class="nav-school-subtitle" style="font-size:11px; font-weight:normal; color:var(--text-muted);"><?= htmlspecialchars($schoolName) ?></div>
-            </div>
-        </a>
-        <div class="nav-user">
-            <button type="button" class="theme-toggle-btn" onclick="toggleSchoolTheme()" title="Εναλλαγή Θέματος">
-                🌙 <span class="theme-toggle-text" style="font-size:12px; font-weight:600;">Σκοτεινό</span>
-            </button>
-            <span class="badge badge-success nav-academic-year" style="font-size:12px; padding:5px 9px; display:inline-flex; align-items:center; gap:4px; border:1px solid #86efac;" title="Τρέχον Σχολικό Έτος">
-                📅 Έτος <strong><?= htmlspecialchars($activeAcademicYear['name'] ?? '2026-2027') ?></strong>
-            </span>
-            <?php if ($user['role'] === 'admin' || $user['role'] === 'teacher_admin'): ?>
-                <a href="../admin/index.php" class="btn btn-primary btn-sm nav-admin-btn" title="Πίνακας Διαχείρισης" aria-label="Πίνακας Διαχείρισης">
-                    <span class="btn-full-text">⚙️ Πίνακας Διαχείρισης</span>
-                    <span class="btn-short-text">⚙️ Διαχείριση</span>
-                </a>
-            <?php endif; ?>
-            <a href="help.php" class="btn btn-secondary btn-sm nav-help-btn" title="Οδηγίες Χρήσης">
-                <span class="btn-full-text">❓ Βοήθεια</span>
-                <span class="btn-short-text">❓</span>
-            </a>
-            <div class="user-badge nav-user-info">
-                👤 <?= htmlspecialchars($user['name']) ?>
-                <?php if ($user['role'] === 'admin'): ?>
-                    <span class="role-tag">Διαχειριστής</span>
-                <?php elseif ($user['role'] === 'teacher_admin'): ?>
-                    <span class="role-tag" style="background:#7c3aed; color:#fff;">👑 Καθηγητής - Διαχειριστής</span>
-                <?php else: ?>
-                    <span class="role-tag">Καθηγητής</span>
-                <?php endif; ?>
-            </div>
-            <?= logoutForm('btn btn-secondary btn-sm nav-logout-btn') ?>
-        </div>
-    </nav>
+    <?php require __DIR__ . '/navbar.php'; ?>
 
     <div class="main-container">
         <?php if (empty($sections)): ?>
@@ -962,6 +926,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
         // Return label based on gender and status
         function getStatusLabel(gender, status) {
             const isFemale = (gender === 'female');
+            if (status === 'leave') return 'ΜΕ ΑΔΕΙΑ';
             if (status === 'expulsion') {
                 return 'ΩΡΙΑΙΑ ΑΠΟΒΟΛΗ';
             }
@@ -1086,7 +1051,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                 // Record baseline saved snapshot
                 savedAbsenceState = {};
                 studentsList.forEach(s => {
-                    s.status = s.status || (s.is_absent ? (s.absence_type === 'expulsion' ? 'expulsion' : (s.absence_type === 'justified' ? 'justified' : 'absent')) : 'present');
+                    s.status = s.status || (s.is_absent ? (s.absence_type === 'leave' ? 'leave' : (s.absence_type === 'expulsion' ? 'expulsion' : (s.absence_type === 'justified' ? 'justified' : 'absent'))) : 'present');
                     savedAbsenceState[s.id] = s.status;
                 });
 
@@ -1211,11 +1176,11 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                 } else if (s.is_justified_locked && !canUserJustify) {
                     card.className = `student-card ${status} justified-locked`;
                     if (currentViewMode !== 'bar') {
-                        card.title = '🔵 Η απουσία είναι δικαιολογημένη από τη διεύθυνση (κλειδωμένη)';
+                        card.title = 'Η δικαιολογημένη απουσία ή άδεια έχει καταχωρηθεί από τη διεύθυνση (κλειδωμένη)';
                     }
                     card.addEventListener('click', () => {
                         if (isCardScrollGesture) return;
-                        showToast('🔵 Η απουσία είναι δικαιολογημένη από τη διεύθυνση και δεν μπορεί να τροποποιηθεί.', 'warning');
+                        showToast('🔵 Η δικαιολογημένη απουσία ή άδεια έχει καταχωρηθεί από τη διεύθυνση και δεν μπορεί να τροποποιηθεί.', 'warning');
                     });
                 } else {
                     card.className = `student-card ${status}`;
@@ -1271,7 +1236,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                             btn.addEventListener('click', e => {
                                 e.stopPropagation();
                                 if (isCardScrollGesture || savingDay) return;
-                                const states = ['present','absent','expulsion','justified'];
+                                const states = canUserJustify ? ['present','absent','leave','expulsion','justified'] : ['present','absent','expulsion'];
                                 dayDraft[s.id][h] = states[(states.indexOf(dayDraft[s.id][h])+1)%states.length];
                                 renderStudents(); updateUnsavedChangesUI();
                             });
@@ -1284,7 +1249,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                                 if (isHourLocked) {
                                     showToast(`🔒 Η ώρα είναι κλειδωμένη (καταχωρήθηκε από ${currentHourData.recorded_by_name || 'άλλον εκπαιδευτικό'}).`, 'warning');
                                 } else if (s.is_justified_locked && !canUserJustify) {
-                                    showToast('🔵 Η απουσία είναι δικαιολογημένη από τη διεύθυνση και δεν μπορεί να τροποποιηθεί.', 'warning');
+                                    showToast('🔵 Η δικαιολογημένη απουσία ή άδεια έχει καταχωρηθεί από τη διεύθυνση και δεν μπορεί να τροποποιηθεί.', 'warning');
                                 } else {
                                     cycleStudentStatus(s.id);
                                 }
@@ -1375,7 +1340,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
             if (!student) return;
 
             if (student.is_justified_locked && !canUserJustify) {
-                showToast('🔵 Η απουσία είναι δικαιολογημένη από τη διεύθυνση και δεν μπορεί να τροποποιηθεί.', 'warning');
+                showToast('🔵 Η δικαιολογημένη απουσία ή άδεια έχει καταχωρηθεί από τη διεύθυνση και δεν μπορεί να τροποποιηθεί.', 'warning');
                 return;
             }
 
@@ -1384,6 +1349,8 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
             if (prev === 'present') {
                 next = 'absent';
             } else if (prev === 'absent') {
+                next = canUserJustify ? 'leave' : 'expulsion';
+            } else if (prev === 'leave') {
                 next = 'expulsion';
             } else if (prev === 'expulsion') {
                 next = canUserJustify ? 'justified' : 'present';
@@ -1395,7 +1362,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
 
             student.status = next;
             student.is_absent = (next !== 'present');
-            student.absence_type = (next === 'expulsion') ? 'expulsion' : (next === 'justified' ? 'justified' : 'absent');
+            student.absence_type = next === 'present' ? 'absent' : next;
 
             const card = document.getElementById(`student-${studentId}`);
             if (card) {
@@ -1419,7 +1386,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
             if (isDayMode()) {
                 const statuses = Object.values(dayDraft).flatMap(hours => Object.values(hours));
                 summaryTotal.textContent = `Μαθητές: ${studentsList.length}`;
-                summaryAbsent.textContent = `Ώρες απουσίας: ${statuses.filter(s=>s==='absent').length}`;
+                summaryAbsent.textContent = `Ώρες απουσίας: ${statuses.filter(s=>s==='absent').length} · Με άδεια: ${statuses.filter(s=>s==='leave').length}`;
                 summaryExpulsion.style.display = 'inline';
                 summaryExpulsion.textContent = ` | Ώρες αποβολής: ${statuses.filter(s=>s==='expulsion').length}`;
                 summaryJustified.style.display = 'inline';
@@ -1432,7 +1399,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
             const justified = studentsList.filter(s => s.status === 'justified').length;
 
             summaryTotal.textContent = `Μαθητές: ${total}`;
-            summaryAbsent.textContent = `Απόντες: ${absent}`;
+            summaryAbsent.textContent = `Απόντες: ${absent} · Με άδεια: ${studentsList.filter(s=>s.status==='leave').length}`;
 
             if (expulsion > 0) {
                 summaryExpulsion.style.display = 'inline';
@@ -1572,8 +1539,9 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
                         hasUnsavedChanges = false;
                         updateUnsavedChangesUI();
 
-                        const totalMissing = (data.absent_count || 0) + (data.expulsion_count || 0) + (data.justified_count || 0);
+                        const totalMissing = (data.absent_count || 0) + (data.leave_count || 0) + (data.expulsion_count || 0) + (data.justified_count || 0);
                         let msg = `✓ Αποθηκεύτηκαν επιτυχώς: ${data.absent_count || 0} απόντες`;
+                        if (data.leave_count > 0) msg += `, ${data.leave_count} με άδεια`;
                         if (data.expulsion_count > 0) {
                             msg += `, ${data.expulsion_count} αποβολή/ές`;
                         }

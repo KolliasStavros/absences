@@ -54,6 +54,9 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
         .badge-info { background: #e0f2fe; color: #075985; }
         .badge-gray { background: #f1f5f9; color: #475569; }
     </style>
+    <?php if ($currentPage === 'marks.php'): ?>
+    <link rel="stylesheet" href="../assets/css/marks.css?v=4">
+    <?php endif; ?>
 </head>
 <body class="admin-layout<?= $currentPage === 'index.php' ? ' attendance-page' : ($currentPage === 'student_cards.php' ? ' absence-cards-page' : ($currentPage === 'students.php' ? ' students-page' : ($currentPage === 'sections.php' ? ' sections-page' : ($currentPage === 'teachers.php' ? ' teachers-page' : ($currentPage === 'import.php' ? ' import-page' : ($currentPage === 'settings.php' ? ' settings-page' : '')))))) ?>">
     <nav class="app-navbar">
@@ -113,6 +116,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
         <div class="nav-tabs" id="adminNavigation" aria-label="Κεντρική πλοήγηση">
             <a href="index.php" class="nav-tab <?= $currentPage === 'index.php' ? 'active' : '' ?>">📊 Σημερινές Απουσίες</a>
             <a href="student_cards.php" class="nav-tab <?= $currentPage === 'student_cards.php' ? 'active' : '' ?>">📋 Καρτέλες Απουσιών &amp; Όρια</a>
+            <a href="<?= isAdmin()?'marks.php':'../teacher/marks.php' ?>" class="nav-tab <?= $currentPage === 'marks.php' ? 'active' : '' ?>" <?= $currentPage === 'marks.php' ? 'aria-current="page"' : '' ?>>📚 Βαθμολογία</a>
 
             <?php if (isAdmin()): ?>
                 <?php 
@@ -197,10 +201,8 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
             <?php endif; ?>
 
             <!-- Προβολή Τμήματος (Teacher View) -->
-            <?php if ($currentPage !== 'index.php'): ?>
-            <a href="../teacher/index.php" class="nav-tab nav-tab-teacher" style="margin-left:auto;" title="Μετάβαση στο Παρουσιολόγιο Τμήματος των Εκπαιδευτικών">
+            <a href="../teacher/index.php" class="nav-tab nav-tab-teacher" title="Μετάβαση στο Παρουσιολόγιο Τμήματος των Εκπαιδευτικών">
                 <span>👨‍🏫 Προβολή Τμήματος</span>
                 <span style="font-size:11px; opacity:0.85;">&nearr;</span>
             </a>
-            <?php endif; ?>
         </div>

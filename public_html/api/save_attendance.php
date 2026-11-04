@@ -59,12 +59,12 @@ try {
 
     // Identify existing justified absences so they cannot be accidentally removed by non-admins
     $stmtJustified = $db->prepare("
-        SELECT student_id 
+        SELECT student_id, absence_type 
         FROM attendance 
-        WHERE date = ? AND hour = ? AND student_id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?) AND academic_year_id = ? AND absence_type = 'justified' AND is_absent = 1
+        WHERE date = ? AND hour = ? AND student_id IN (SELECT student_id FROM {$sectionMembershipSql} AS memberships WHERE section_id = ?) AND academic_year_id = ? AND absence_type IN ('justified','leave') AND is_absent = 1
     ");
     $stmtJustified->execute([$date, $hour, $sectionId, $activeYearId]);
-    $alreadyJustifiedStudentIds = $stmtJustified->fetchAll(PDO::FETCH_COLUMN);
+    $protectedTypes = $stmtJustified->fetchAll(PDO::FETCH_KEY_PAIR);
 
     // Fetch all students in this section for the active academic year
     $stmt = $db->prepare("
@@ -84,7 +84,7 @@ try {
         attendanceDenied($db, 400, 'Μη έγκυρος πίνακας καταστάσεων.');
     }
     foreach (($statuses ?? []) as $status) {
-        if (!in_array($status,['present','absent','expulsion','justified'],true)) attendanceDenied($db, 400, 'Μη έγκυρη κατάσταση παρουσίας.');
+        if (!in_array($status,['present','absent','leave','expulsion','justified'],true)) attendanceDenied($db, 400, 'Μη έγκυρη κατάσταση παρουσίας.');
     }
     foreach (array_keys(is_array($statuses) ? $statuses : []) as $submittedId) validateAttendanceStudent($db, (int)$submittedId, $sectionId, $activeYearId);
     foreach (($input['absent_student_ids'] ?? []) as $submittedId) validateAttendanceStudent($db, (int)$submittedId, $sectionId, $activeYearId);
@@ -102,6 +102,7 @@ try {
             updated_at = NOW()
     ");
 
+    $leaveCount = 0;
     $absentCount = 0;
     $expulsionCount = 0;
     $justifiedCount = 0;
@@ -115,10 +116,8 @@ try {
         }
 
         // If this absence was already justified by an admin and caller is not admin, preserve justified
-        if (in_array($sId, $alreadyJustifiedStudentIds) && !canJustifyAbsences()) {
-            $isAbsent = 1;
-            $absenceType = 'justified';
-            $justifiedCount++;
+        if (isset($protectedTypes[$sId]) && !canJustifyAbsences()) {
+            if ($protectedTypes[$sId] === 'leave') $leaveCount++; else $justifiedCount++;
             continue; // Preserve the complete protected record, including owner and section.
         } elseif ($st === 'justified') {
             if (!canJustifyAbsences()) {
@@ -131,6 +130,11 @@ try {
             $isAbsent = 1;
             $absenceType = 'expulsion';
             $expulsionCount++;
+        } elseif ($st === 'leave') {
+            if (!canJustifyAbsences()) attendanceDenied($db,403,'Μόνο οι διαχειριστές μπορούν να καταχωρούν άδεια.');
+            $isAbsent = 1;
+            $absenceType = 'leave';
+            $leaveCount++;
         } elseif ($st === 'absent') {
             $isAbsent = 1;
             $absenceType = 'absent';
@@ -146,10 +150,11 @@ try {
     $db->commit();
     echo json_encode([
         'success' => true, 
+        'leave_count' => $leaveCount,
         'absent_count' => $absentCount, 
         'expulsion_count' => $expulsionCount,
         'justified_count' => $justifiedCount,
-        'total_missing' => ($absentCount + $expulsionCount + $justifiedCount)
+        'total_missing' => ($absentCount + $leaveCount + $expulsionCount + $justifiedCount)
     ]);
 } catch (Throwable $e) {
     if (isset($db) && $db instanceof PDO && $db->inTransaction()) {

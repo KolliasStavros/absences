@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . "/../includes/absence_types.php";
 // api/toggle_student_absence.php - Instant inline absence toggle for Admin Daily Dashboard
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/request_validation.php';
@@ -39,15 +40,15 @@ $action=$input['action'] ?? 'toggle';
 $absenceType=$input['absence_type'] ?? 'absent';
 if (!is_string($action) || !is_string($absenceType)) schoolJsonResponse(['error'=>'Μη έγκυρη ενέργεια ή τύπος απουσίας.'],400);
 $action=trim($action);$absenceType=trim($absenceType);
-if (!in_array($action,['toggle','set','cycle','set_all_day','clear_all_day','set_note'],true) || !in_array($absenceType,['absent','expulsion','justified'],true)) schoolJsonResponse(['error'=>'Μη έγκυρη ενέργεια ή τύπος απουσίας.'],400);
-if ($absenceType==='justified' && !canJustifyAbsences()) schoolJsonResponse(['error'=>'Μόνο οι διαχειριστές του σχολείου μπορούν να καταχωρούν δικαιολογημένες απουσίες.'],403);
+if (!in_array($action,['toggle','set','cycle','set_all_day','clear_all_day','set_note'],true) || !in_array($absenceType,['absent','leave','expulsion','justified'],true)) schoolJsonResponse(['error'=>'Μη έγκυρη ενέργεια ή τύπος απουσίας.'],400);
+if (in_array($absenceType,['justified','leave'],true) && !canJustifyAbsences()) schoolJsonResponse(['error'=>'Μόνο οι διαχειριστές του σχολείου μπορούν να καταχωρούν άδεια ή δικαιολογημένη απουσία.'],403);
 $sectionId=schoolOptionalRequestId($input['section_id'] ?? null);
 if ($sectionId===null) schoolJsonResponse(['error'=>'Μη έγκυρο τμήμα.'],400);
 $allDay=in_array($action,['set_all_day','clear_all_day'],true);
 $hourValue=$input['hour'] ?? 0;
 $hour=$allDay && in_array($hourValue,[0,'0'],true) ? 0 : schoolRequestHour($hourValue);
 if ($hour===null) schoolJsonResponse(['error'=>'Μη έγκυρη διδακτική ώρα.'],400);
-if ($action==='set_note' && isset($input['note']) && !is_string($input['note'])) schoolJsonResponse(['error'=>'Μη έγκυρη σημείωση.'],400);
+if (in_array($action,['set_note','set'],true) && isset($input['note']) && !is_string($input['note'])) schoolJsonResponse(['error'=>'Μη έγκυρη σημείωση.'],400);
 
 $db = getDB();
 $activeYear = getActiveAcademicYear();
@@ -58,7 +59,7 @@ if (!in_array($action, ['toggle','set','cycle','set_all_day','clear_all_day','se
 }
 try {
     $user = beginAttendanceMutation($db, $activeYearId, ['admin','teacher_admin']);
-    if ($absenceType==='justified' && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η δικαιολόγηση.');
+    if (in_array($absenceType,['justified','leave'],true) && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η δικαιολόγηση.');
     if ($sectionId <= 0) {
         $stmt = $db->prepare('SELECT ss.section_id FROM student_sections ss JOIN students s ON s.id=ss.student_id WHERE s.id=? AND s.academic_year_id=? ORDER BY ss.section_id LIMIT 1');
         $stmt->execute([$studentId, $activeYearId]);
@@ -66,11 +67,11 @@ try {
     }
     validateAttendanceSection($db, $sectionId, $activeYearId, $user);
     validateAttendanceStudent($db, $studentId, $sectionId, $activeYearId);
-    $protected = $db->prepare("SELECT hour FROM attendance WHERE student_id=? AND date=? AND academic_year_id=? AND is_absent=1 AND absence_type='justified' FOR UPDATE");
+    $protected = $db->prepare("SELECT hour FROM attendance WHERE student_id=? AND date=? AND academic_year_id=? AND is_absent=1 AND absence_type IN ('justified','leave') FOR UPDATE");
     $protected->execute([$studentId, $date, $activeYearId]);
     $protectedHours = array_map('intval', $protected->fetchAll(PDO::FETCH_COLUMN));
     if (!canJustifyAbsences() && ($action === 'set_all_day' || $action === 'clear_all_day' ? count($protectedHours)>0 : in_array($hour, $protectedHours, true))) {
-        attendanceDenied($db, 403, 'Οι δικαιολογημένες απουσίες προστατεύονται. Η ενέργεια ακυρώθηκε ολόκληρη.');
+        attendanceDenied($db, 403, 'Οι δικαιολογημένες απουσίες και οι άδειες προστατεύονται. Η ενέργεια ακυρώθηκε ολόκληρη.');
     }
 
     if ($action === 'set_all_day') {
@@ -98,50 +99,12 @@ try {
         } else {
             $stmtDel = $db->prepare("
                 DELETE FROM attendance 
-                WHERE student_id = ? AND date = ? AND academic_year_id = ? AND (absence_type != 'justified' OR absence_type IS NULL)
+                WHERE student_id = ? AND date = ? AND academic_year_id = ? AND (absence_type NOT IN ('justified','leave') OR absence_type IS NULL)
             ");
             $stmtDel->execute([$studentId, $date, $activeYearId]);
         }
         } elseif ($action === 'set_note') {
-        $rawNote = isset($input['note']) ? trim((string)$input['note']) : '';
-        $noteVal = ($rawNote !== '') ? mb_substr($rawNote, 0, 255) : null;
-
-        if ($noteVal === null) {
-            // Delete note from attendance_notes
-            $stmtDelNote = $db->prepare("
-                DELETE FROM attendance_notes 
-                WHERE student_id = ? AND date = ? AND hour = ? AND academic_year_id = ?
-            ");
-            $stmtDelNote->execute([$studentId, $date, $hour, $activeYearId]);
-
-            // Clear note from attendance if an absence row exists
-            $stmtClearAtt = $db->prepare("
-                UPDATE attendance 
-                SET note = NULL, updated_at = NOW() 
-                WHERE student_id = ? AND date = ? AND hour = ? AND academic_year_id = ?
-            ");
-            $stmtClearAtt->execute([$studentId, $date, $hour, $activeYearId]);
-        } else {
-            // Save or update note in attendance_notes (independent of absence)
-            $stmtSaveNote = $db->prepare("
-                INSERT INTO attendance_notes (academic_year_id, student_id, date, hour, note, teacher_id, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE 
-                    academic_year_id = VALUES(academic_year_id),
-                    note = VALUES(note),
-                    teacher_id = VALUES(teacher_id),
-                    updated_at = NOW()
-            ");
-            $stmtSaveNote->execute([$activeYearId, $studentId, $date, $hour, $noteVal, $user['id']]);
-
-            // If an absence row exists for this hour, keep attendance.note synced
-            $stmtSyncAtt = $db->prepare("
-                UPDATE attendance 
-                SET note = ?, updated_at = NOW() 
-                WHERE student_id = ? AND date = ? AND hour = ? AND academic_year_id = ?
-            ");
-            $stmtSyncAtt->execute([$noteVal, $studentId, $date, $hour, $activeYearId]);
-        }
+        // Persist the note below, in the same transaction as a new absence.
     } elseif ($action === 'cycle') {
         if ($hour < 1 || $hour > 8) {
             http_response_code(400);
@@ -172,11 +135,11 @@ try {
                     updated_at = NOW()
             ");
             $stmtInsert->execute([$activeYearId, $date, $hour, $sectionId, $studentId, $user['id'], $nextType]);
-        } elseif ($existing['absence_type'] === 'absent') {
-            // Step 2: Absent -> Expulsion
-            $nextType = 'expulsion';
+        } elseif (in_array($existing['absence_type'], ['absent','leave'], true)) {
+            // Absent -> Leave -> Expulsion
+            $nextType = $existing['absence_type'] === 'absent' && canJustifyAbsences() ? 'leave' : 'expulsion';
             $stmtUp = $db->prepare("
-                UPDATE attendance SET absence_type = ?, is_absent = 1, updated_at = NOW() WHERE id = ?
+                UPDATE attendance SET absence_type = ?, is_absent = 1, email_notified = 0, updated_at = NOW() WHERE id = ?
             ");
             $stmtUp->execute([$nextType, $existing['id']]);
         } elseif ($existing['absence_type'] === 'expulsion') {
@@ -184,7 +147,7 @@ try {
             if (canJustifyAbsences()) {
                 $nextType = 'justified';
                 $stmtUp = $db->prepare("
-                    UPDATE attendance SET absence_type = ?, is_absent = 1, updated_at = NOW() WHERE id = ?
+                    UPDATE attendance SET absence_type = ?, is_absent = 1, email_notified = 0, updated_at = NOW() WHERE id = ?
                 ");
                 $stmtUp->execute([$nextType, $existing['id']]);
             } else {
@@ -195,7 +158,7 @@ try {
             // Step 4: Justified -> Present (Delete - only school admin can delete justified absences)
             if (!canJustifyAbsences()) {
                 http_response_code(403);
-                echo json_encode(['error' => 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες.']);
+                echo json_encode(['error' => 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες ή άδειες.']);
                 if ($db->inTransaction()) $db->rollBack();
                 exit;
             }
@@ -241,9 +204,9 @@ try {
 
         if ($existing && (int)$existing['is_absent'] === 1) {
             // Non-admin cannot toggle/overwrite justified absences
-            if ($existing['absence_type'] === 'justified' && !canJustifyAbsences()) {
+            if (in_array($existing['absence_type'],['justified','leave'],true) && !canJustifyAbsences()) {
                 http_response_code(403);
-                echo json_encode(['error' => 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες.']);
+                echo json_encode(['error' => 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες ή άδειες.']);
                 if ($db->inTransaction()) $db->rollBack();
                 exit;
             }
@@ -280,11 +243,53 @@ try {
         }
     }
 
+    if ($action === 'set_note' || ($action === 'set' && array_key_exists('note', $input))) {
+        $rawNote = isset($input['note']) ? trim((string)$input['note']) : '';
+        $noteVal = ($rawNote !== '') ? mb_substr($rawNote, 0, 255) : null;
+
+        if ($noteVal === null) {
+            // Delete note from attendance_notes
+            $stmtDelNote = $db->prepare("
+                DELETE FROM attendance_notes 
+                WHERE student_id = ? AND date = ? AND hour = ? AND academic_year_id = ?
+            ");
+            $stmtDelNote->execute([$studentId, $date, $hour, $activeYearId]);
+
+            // Clear note from attendance if an absence row exists
+            $stmtClearAtt = $db->prepare("
+                UPDATE attendance 
+                SET note = NULL, updated_at = NOW() 
+                WHERE student_id = ? AND date = ? AND hour = ? AND academic_year_id = ?
+            ");
+            $stmtClearAtt->execute([$studentId, $date, $hour, $activeYearId]);
+        } else {
+            // Save or update note in attendance_notes (independent of absence)
+            $stmtSaveNote = $db->prepare("
+                INSERT INTO attendance_notes (academic_year_id, student_id, date, hour, note, teacher_id, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE 
+                    academic_year_id = VALUES(academic_year_id),
+                    note = VALUES(note),
+                    teacher_id = VALUES(teacher_id),
+                    updated_at = NOW()
+            ");
+            $stmtSaveNote->execute([$activeYearId, $studentId, $date, $hour, $noteVal, $user['id']]);
+
+            // If an absence row exists for this hour, keep attendance.note synced
+            $stmtSyncAtt = $db->prepare("
+                UPDATE attendance 
+                SET note = ?, updated_at = NOW() 
+                WHERE student_id = ? AND date = ? AND hour = ? AND academic_year_id = ?
+            ");
+            $stmtSyncAtt->execute([$noteVal, $studentId, $date, $hour, $activeYearId]);
+        }
+    }
+
     $db->commit();
 
     // Fetch updated absence hours for this student on this date
     $stmtHours = $db->prepare("
-        SELECT a.id, a.hour, a.absence_type, a.note, a.email_notified, sec.name as section_name, u.name as teacher_name
+        SELECT a.id, a.section_id, a.hour, a.absence_type, a.note, a.email_notified, sec.name as section_name, u.name as teacher_name
         FROM attendance a
         LEFT JOIN sections sec ON a.section_id = sec.id
         LEFT JOIN users u ON a.teacher_id = u.id
@@ -308,7 +313,7 @@ try {
       // Merge notes into updated absence records
       foreach ($updatedRecords as &$rec) {
           $h = (int)$rec['hour'];
-          $rec['note'] = $studentNotesMap[$h] ?? null;
+          $rec['note'] = $studentNotesMap[$h] ?? $rec['note'];
       }
       unset($rec);
 
@@ -365,7 +370,7 @@ try {
             $schoolPhone = getSchoolSetting('school_phone', '210-1234567');
             $maskStudentName = (int)getSchoolSetting('mask_student_name', 0);
             $subjectTemplate = getSchoolSetting('email_template_subject', 'Ενημέρωση Απουσιών Μαθητή - {school_name}');
-            $bodyTemplate = getSchoolSetting('email_template_body', "Αξιότιμε κ./κα {guardian_name_voc},\n\nΣας ενημερώνουμε ότι {student_article} {student_noun} {student_full_name} σημείωσε απουσία τις ακόλουθες διδακτικές ώρες την ημερομηνία {date}:\n\nΏρες Απουσίας: {hours}\n\nΜε εκτίμηση,\n{school_name}\nΤηλέφωνο Επικοινωνίας: {school_phone}");
+            $bodyTemplate = str_replace('{hours}.', '{hours}', getSchoolSetting('email_template_body', defaultAbsenceEmailTemplate()));
 
             $gender = $stInfo['gender'] ?: 'male';
             $studentTitle = get_student_title($gender);
@@ -382,8 +387,7 @@ try {
             }
             $guardianVoc = $stInfo['guardian_name_voc'] ?: ($stInfo['guardian_name'] ? 'κ./κα ' . inflect_word_vocative($stInfo['last_name']) : 'γονέα');
             $formattedDate = date('d/m/Y', strtotime($date));
-            $hoursArr = array_map(function($r) { return $r['hour'] . 'η'; }, $updatedRecords);
-            $hoursText = implode(', ', $hoursArr);
+            $hoursText = absenceEmailHours($updatedRecords);
 
             $replacements = [
                 '{school_name}' => $schoolName,

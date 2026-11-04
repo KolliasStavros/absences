@@ -8,12 +8,12 @@
 # Deny direct HTTP access to internal system directories (mod_rewrite)
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(migrations|tests|bin|includes|config|scratch|release|tools)(/|$) - [F,L,NC]
+    RewriteRule ^(\.agent|migrations|tests|bin|includes|config|scratch|release|tools)(/|$) - [F,L,NC]
 </IfModule>
 
 # Fallback directory protection (mod_alias works even without mod_rewrite)
 <IfModule mod_alias.c>
-    RedirectMatch 403 (?i)/(migrations|tests|bin|includes|config|scratch|release|tools)(/|$)
+    RedirectMatch 403 (?i)/(\.agent|migrations|tests|bin|includes|config|scratch|release|tools)(/|$)
 </IfModule>
 
 # Prevent directory browsing

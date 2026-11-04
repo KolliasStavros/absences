@@ -12,7 +12,9 @@ class AppPDO extends PDO {
         'academic_years', 'absence_day_reasons', 'attendance_notes', 'attendance', 'grades',
         'login_attempts', 'notification_logs', 'password_resets',
         'reset_requests', 'student_sections', 'teacher_sections',
-        'sections', 'settings', 'smtp_accounts', 'students', 'users'
+        'sections', 'settings', 'smtp_accounts', 'students', 'users',
+        'subjects', 'course_offerings', 'course_teachers', 'assessment_periods',
+        'course_students', 'student_marks', 'mark_submissions', 'mark_audit_log', 'mark_teacher_aliases'
     ];
 
     public static function setPrefix(?string $prefix): void {

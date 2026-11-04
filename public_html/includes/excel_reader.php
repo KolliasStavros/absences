@@ -702,7 +702,6 @@ class ExcelReader {
         $headerRowIdx = null;
         $lastNameCol = 1;
         $firstNameCol = 2;
-        $afmCol = 4;
         $sectionCol = 8;
 
         foreach ($sheet as $rIdx => $row) {
@@ -715,9 +714,6 @@ class ExcelReader {
                 }
                 if ($val === 'Όνομα' || (mb_stripos($val, 'Όνομα', 0, 'UTF-8') === 0 && mb_stripos($val, 'πατέρα', 0, 'UTF-8') === false)) {
                     $firstNameCol = $cIdx;
-                }
-                if (mb_stripos($val, 'Α.Φ.Μ', 0, 'UTF-8') !== false || mb_stripos($val, 'ΑΦΜ', 0, 'UTF-8') !== false) {
-                    $afmCol = $cIdx;
                 }
                 if (mb_stripos($val, 'Τμήμα', 0, 'UTF-8') !== false) {
                     $sectionCol = $cIdx;
@@ -756,7 +752,6 @@ class ExcelReader {
 
             $cLastName = trim((string)($row[$lastNameCol] ?? ''));
             $cFirstName = trim((string)($row[$firstNameCol] ?? ''));
-            $cAfm = trim((string)($row[$afmCol] ?? ''));
             $cSection = trim((string)($row[$sectionCol] ?? ''));
 
             // Check if this row initiates a new teacher
@@ -766,12 +761,8 @@ class ExcelReader {
                     $teachersMap[$currentTeacherKey] = [
                         'last_name' => $cLastName,
                         'first_name' => $cFirstName,
-                        'afm' => $cAfm,
                         'sections' => []
                     ];
-                }
-                if (!empty($cAfm) && empty($teachersMap[$currentTeacherKey]['afm'])) {
-                    $teachersMap[$currentTeacherKey]['afm'] = $cAfm;
                 }
             }
 
@@ -802,7 +793,6 @@ class ExcelReader {
 
         foreach ($teachersMap as $tKey => $tData) {
             $fullName = $tData['last_name'] . ' ' . $tData['first_name'];
-            $afm = $tData['afm'];
             $sections = $tData['sections'];
 
             // Match teacher by full name
@@ -821,7 +811,7 @@ class ExcelReader {
                 $latinFirst = self::transliterateGreek($tData['first_name']);
                 $baseEmail = strtolower($latinLast . '.' . $latinFirst);
                 if (empty($baseEmail) || $baseEmail === '.') {
-                    $baseEmail = 'teacher.' . ($afm ?: rand(1000, 9999));
+                    $baseEmail = 'teacher.' . bin2hex(random_bytes(12));
                 }
                 $emailCandidate = $baseEmail . '@myschool.local';
 

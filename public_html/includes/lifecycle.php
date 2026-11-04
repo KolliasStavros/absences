@@ -4,7 +4,7 @@ require_once __DIR__.'/lifecycle_restore.php';
 
 final class AbsencesLifecycle {
     use AbsencesRestore;
-    private const TABLES=['academic_years','absence_day_reasons','attendance_notes','attendance','grades','login_attempts','notification_logs','password_resets','reset_requests','student_sections','teacher_sections','sections','settings','smtp_accounts','students','users'];
+    private const TABLES=['academic_years','absence_day_reasons','attendance_notes','attendance','grades','login_attempts','notification_logs','password_resets','reset_requests','student_sections','teacher_sections','sections','settings','smtp_accounts','students','users','subjects','course_offerings','course_teachers','assessment_periods','course_students','student_marks','mark_submissions','mark_audit_log','mark_teacher_aliases'];
     public function __construct(public readonly string $root, public readonly string $store, private readonly PDO $db, private readonly string $database, private readonly string $prefix) {
         if (!preg_match('/^[a-zA-Z0-9_]{0,40}$/D',$prefix) || !preg_match('/^[a-zA-Z0-9_]+$/D',$database)) throw new DomainException('Μη έγκυρα στοιχεία εγκατάστασης.');
         if (!is_dir($store) || !is_writable($store)) throw new DomainException('Δεν είναι διαθέσιμος ο ιδιωτικός φάκελος συντήρησης.');

@@ -38,7 +38,7 @@ try {
         $studentId = schoolRequestId($change['student_id'] ?? null);
         $hour = schoolRequestHour($change['hour'] ?? null,7);
         $status = $change['status'] ?? null;
-        if (!$studentId || !$hour || $hour < 1 || $hour > 7 || !is_string($status) || !in_array($status,['present','absent','expulsion','justified'],true) || !is_string($change['version'] ?? null)) attendanceDenied($db,400,'Μη έγκυρος μαθητής, ώρα ή κατάσταση.');
+        if (!$studentId || !$hour || $hour < 1 || $hour > 7 || !is_string($status) || !in_array($status,['present','absent','leave','expulsion','justified'],true) || !is_string($change['version'] ?? null)) attendanceDenied($db,400,'Μη έγκυρος μαθητής, ώρα ή κατάσταση.');
         $key = $studentId . ':' . $hour;
         if (isset($seen[$key])) attendanceDenied($db,400,'Διπλή καταχώρηση της ίδιας ώρας.');
         $seen[$key] = true;

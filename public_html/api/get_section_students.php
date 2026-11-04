@@ -107,7 +107,10 @@ foreach ($students as &$s) {
     $s['gender'] = $s['gender'] ?: 'male';
     $att = $absences[$s['id']] ?? null;
     if ($att && $att['is_absent'] == 1) {
-        if ($att['absence_type'] === 'expulsion') {
+        if ($att['absence_type'] === 'leave') {
+            $s['status'] = 'leave';
+            $s['is_justified_locked'] = !canJustifyAbsences();
+        } elseif ($att['absence_type'] === 'expulsion') {
             $s['status'] = 'expulsion';
         } elseif ($att['absence_type'] === 'justified') {
             $s['status'] = 'justified';

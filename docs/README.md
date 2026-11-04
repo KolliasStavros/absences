@@ -10,8 +10,10 @@
 | [INSTALLATION-CHECKLIST.md](INSTALLATION-CHECKLIST.md) | Σύντομη λίστα προετοιμασίας, εγκατάστασης και παράδοσης |
 | [CONFIGURATION.md](CONFIGURATION.md) | Ιδιωτικό config, SMTP, κλειδιά και φάκελοι |
 | [USER-GUIDE.md](USER-GUIDE.md) | Καθημερινή χρήση και δικαιώματα |
+| [GRADING.md](GRADING.md) | Βαθμολογία, αναθέσεις MySchool, μπάρες, περίοδοι και δικαιώματα |
 | [IMPORT-EXPORT.md](IMPORT-EXPORT.md) | MySchool, στήλες εισαγωγής και εξαγωγές |
 | [MAINTENANCE.md](MAINTENANCE.md) | Υπογεγραμμένη ενημέρωση, backup, επαναφορά και απεγκατάσταση |
+| [UPGRADE-1.1.0.md](UPGRADE-1.1.0.md) | Προετοιμασία παλιού μηχανισμού συντήρησης και μεταβολές βάσης για 1.1.0 |
 | [SECURITY.md](SECURITY.md) | Ασφάλεια διάθεσης και φύλαξη δεδομένων |
 | [DIAGNOSTICS.md](DIAGNOSTICS.md) | Τεχνικά σφάλματα PHP, βάσης και JavaScript |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Συχνά προβλήματα και έλεγχοι |

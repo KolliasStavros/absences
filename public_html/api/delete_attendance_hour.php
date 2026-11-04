@@ -74,7 +74,7 @@ if (!canManageAnyAttendance()) {
 
 // Protected absence types: Justified absences can only be deleted/managed by Admin (canJustifyAbsences)
 $justifiedRows = array_filter($existingRows, function($r) {
-    return $r['absence_type'] === 'justified' && (int)$r['is_absent'] === 1;
+    return in_array($r['absence_type'], ['justified','leave'], true) && (int)$r['is_absent'] === 1;
 });
 
 try {
@@ -85,14 +85,14 @@ try {
         if (count($justifiedRows) === count($existingRows)) {
             $db->rollBack();
             http_response_code(403);
-            echo json_encode(['error' => 'Η ώρα περιέχει μόνο δικαιολογημένες απουσίες, οι οποίες μπορούν να τροποποιηθούν ή να διαγραφούν μόνο από τη διεύθυνση του σχολείου.']);
+            echo json_encode(['error' => 'Η ώρα περιέχει μόνο δικαιολογημένες απουσίες ή άδειες, οι οποίες μπορούν να τροποποιηθούν ή να διαγραφούν μόνο από τη διεύθυνση του σχολείου.']);
             exit;
         }
 
         // Delete only non-justified rows, preserving justified ones
         $stmtDelete = $db->prepare("
             DELETE FROM attendance 
-            WHERE date = ? AND hour = ? AND section_id = ? AND academic_year_id = ? AND absence_type != 'justified'
+            WHERE date = ? AND hour = ? AND section_id = ? AND academic_year_id = ? AND absence_type NOT IN ('justified','leave')
         ");
         $stmtDelete->execute([$date, $hour, $sectionId, $activeYearId]);
         $deletedCount = $stmtDelete->rowCount();
@@ -100,7 +100,7 @@ try {
         $db->commit();
         echo json_encode([
             'success' => true, 
-            'message' => "Οι απουσίες της {$hour}ης ώρας διαγράφηκαν επιτυχώς. Οι δικαιολογημένες απουσίες διατηρήθηκαν ακέραιες.",
+            'message' => "Οι απουσίες της {$hour}ης ώρας διαγράφηκαν επιτυχώς. Οι δικαιολογημένες απουσίες και οι άδειες διατηρήθηκαν ακέραιες.",
             'deleted_count' => $deletedCount,
             'preserved_justified' => count($justifiedRows)
         ]);

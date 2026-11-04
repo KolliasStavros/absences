@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . "/../includes/absence_types.php";
 // admin/index.php - Live Absences Dashboard with Filters (All/Grade/Section/Status), Add/Edit/Delete Absences & Email Preview
 $pageTitle = 'Ημερήσιο Παρουσιολόγιο & Απουσίες';
 require_once __DIR__ . '/header.php';
@@ -17,13 +18,13 @@ if (!$dateCheck || $dateCheck->format('Y-m-d') !== $selectedDate) {
 $filterGradeId = isset($_GET['grade_id']) && $_GET['grade_id'] !== '' ? (int)$_GET['grade_id'] : 0;
 $filterSectionId = isset($_GET['section_id']) && $_GET['section_id'] !== '' ? (int)$_GET['section_id'] : 0;
 $statusFilter = $_GET['status_filter'] ?? 'absent_only'; // 'absent_only', 'all', 'present_only', 'expulsion_only', 'justified_only'
-if (!in_array($statusFilter,['absent_only','all','present_only','expulsion_only','justified_only'],true)) $statusFilter='absent_only';
+if (!in_array($statusFilter,['absent_only','all','present_only','expulsion_only','justified_only','leave_only'],true)) $statusFilter='absent_only';
 
 $actionMessage = '';
 $actionError = '';
 
 $subjectTemplate = getSchoolSetting('email_template_subject', 'Ενημέρωση Απουσιών Μαθητή - {school_name}');
-$bodyTemplate = getSchoolSetting('email_template_body', '');
+$bodyTemplate = str_replace('{hours}.', '{hours}', getSchoolSetting('email_template_body', defaultAbsenceEmailTemplate()));
 $schoolPhone = getSchoolSetting('school_phone', '');
 $maskStudentName = getSchoolSetting('mask_student_name', '0') === '1';
 $smsEnabled = getSchoolSetting('sms_enabled', '0') === '1';
@@ -45,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $att = $stmt->fetch();
             if (!$att) {
                 $actionError = 'Η απουσία δεν βρέθηκε.';
-            } elseif ($att['absence_type'] === 'justified' && !canJustifyAbsences()) {
-                $actionError = 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες.';
+            } elseif (in_array($att['absence_type'], ['justified','leave'], true) && !canJustifyAbsences()) {
+                $actionError = 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες ή άδειες.';
             } else {
                 $stmt = $db->prepare("DELETE FROM attendance WHERE id = ?");
                 $stmt->execute([$attId]);
@@ -64,9 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dObj = DateTime::createFromFormat('Y-m-d', $date);
 
             $absenceType = trim($_POST['absence_type'] ?? 'absent');
-            if (!in_array($absenceType, ['absent', 'expulsion', 'justified'])) $absenceType = 'absent';
-            if ($absenceType === 'justified' && !canJustifyAbsences()) {
-                $absenceType = 'absent';
+            if (!in_array($absenceType, ['absent', 'leave', 'expulsion', 'justified'])) $absenceType = 'absent';
+            if (in_array($absenceType, ['justified','leave'], true) && !canJustifyAbsences()) {
+                attendanceDenied($db,403,'Η άδεια και η δικαιολόγηση επιτρέπονται μόνο στους διαχειριστές.');
             }
 
             if (!$dObj || $dObj->format('Y-m-d') !== $date) {
@@ -76,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user = beginAttendanceMutation($db, $activeYearId, ['admin','teacher_admin']);
                     validateAttendanceSection($db,$sectionId,$activeYearId,$user);
                     validateAttendanceStudent($db,$studentId,$sectionId,$activeYearId);
-                    if ($absenceType === 'justified' && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η δικαιολόγηση.');
+                    if (in_array($absenceType, ['justified','leave'], true) && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η άδεια ή η δικαιολόγηση.');
                     assertMutableAttendanceHours($db,$studentId,$date,$activeYearId,[$hour]);
                     $stmt = $db->prepare("
                         INSERT INTO attendance (academic_year_id, date, hour, section_id, student_id, teacher_id, is_absent, absence_type, email_notified)
@@ -86,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$activeYearId, $date, $hour, $sectionId, $studentId, $user['id'], $absenceType]);
                     
                     $db->commit();
-                    $typeName = ($absenceType === 'expulsion') ? 'ωριαία αποβολή' : (($absenceType === 'justified') ? 'δικαιολογημένη απουσία' : 'απουσία');
+                    $typeName = absenceTypeLabel($absenceType);
                     $actionMessage = "Η {$hour}η ώρα καταχωρήθηκε επιτυχώς ως {$typeName}!";
                 } catch (Exception $e) {
                     if($db->inTransaction())$db->rollBack();
@@ -105,9 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dObj = DateTime::createFromFormat('Y-m-d', $date);
             $selectedHours = $_POST['hours'] ?? [];
             $absenceType = trim($_POST['absence_type'] ?? 'absent');
-            if (!in_array($absenceType, ['absent', 'expulsion', 'justified'])) $absenceType = 'absent';
-            if ($absenceType === 'justified' && !canJustifyAbsences()) {
-                $absenceType = 'absent';
+            if (!in_array($absenceType, ['absent', 'leave', 'expulsion', 'justified'])) $absenceType = 'absent';
+            if (in_array($absenceType, ['justified','leave'], true) && !canJustifyAbsences()) {
+                attendanceDenied($db,403,'Η άδεια και η δικαιολόγηση επιτρέπονται μόνο στους διαχειριστές.');
             }
 
             if ($studentId <= 0 || empty($selectedHours) || empty($date)) {
@@ -128,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user = beginAttendanceMutation($db,$activeYearId,['admin','teacher_admin']);
                     validateAttendanceSection($db,$sectionId,$activeYearId,$user);
                     validateAttendanceStudent($db,$studentId,$sectionId,$activeYearId);
-                    if ($absenceType === 'justified' && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η δικαιολόγηση.');
+                    if (in_array($absenceType, ['justified','leave'], true) && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η άδεια ή η δικαιολόγηση.');
                     if(!is_array($selectedHours) || array_filter($selectedHours,fn($h)=>(int)$h<1 || (int)$h>8)) attendanceDenied($db,400,'Μη έγκυρες ώρες.');
                     assertMutableAttendanceHours($db,$studentId,$date,$activeYearId,array_map('intval',$selectedHours));
 
@@ -196,19 +197,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (empty($absences)) continue;
 
-            $hourLabels = [];
-            $attIds = [];
-            foreach ($absences as $a) {
-                $lbl = $a['hour'] . 'η';
-                if ($a['absence_type'] === 'expulsion') {
-                    $lbl .= ' (Αποβολή)';
-                } elseif ($a['absence_type'] === 'justified') {
-                    $lbl .= ' (Δικαιολογημένη)';
-                }
-                $hourLabels[] = $lbl;
-                $attIds[] = $a['id'];
-            }
-            $hoursText = implode(', ', $hourLabels);
+            $attIds = array_column($absences, 'id');
+            $hoursText = absenceEmailHours($absences);
 
             $gender = $student['gender'] ?? 'male';
             $studentTitle = get_student_title($gender);
@@ -488,10 +478,12 @@ foreach ($studentRows as $s) {
         $totalAbsenceHours += count($sAtts);
     }
 
+    $hasLeave = false;
     $hasExpulsion = false;
     $hasJustified = false;
     $hasPending = false;
     foreach ($sAtts as $a) {
+        if ($a['absence_type'] === 'leave') $hasLeave = true;
         if ($a['absence_type'] === 'expulsion') {
             $hasExpulsion = true;
             $totalExpulsions++;
@@ -517,6 +509,8 @@ foreach ($studentRows as $s) {
         $include = $hasAbsence;
     } elseif ($statusFilter === 'present_only') {
         $include = !$hasAbsence;
+    } elseif ($statusFilter === 'leave_only') {
+        $include = $hasLeave;
     } elseif ($statusFilter === 'expulsion_only') {
         $include = $hasExpulsion;
     } elseif ($statusFilter === 'justified_only') {
@@ -541,6 +535,7 @@ foreach ($studentRows as $s) {
     $attendancesList = [];
     foreach ($sAtts as $a) {
         $hLabel = $a['hour'] . 'η';
+        if ($a['absence_type'] === 'leave') $hLabel .= ' (Με άδεια)';
         if ($a['absence_type'] === 'expulsion') {
             $hLabel .= ' (Ω.Α.)';
         } elseif ($a['absence_type'] === 'justified') {
@@ -611,7 +606,7 @@ foreach ($studentRows as $s) {
         }
         $guardianVoc = $s['guardian_name_voc'] ?: ($s['guardian_name'] ? 'κ./κα ' . inflect_word_vocative($s['last_name']) : 'γονέα');
         $formattedDate = date('d/m/Y', strtotime($selectedDate));
-        $hoursText = implode(', ', $hoursArr);
+        $hoursText = absenceEmailHours($sAtts);
 
         $replacements = [
             '{school_name}' => $schoolName,
@@ -947,8 +942,34 @@ foreach ($studentRows as $sr) {
     background: #fee2e2;
     color: #b91c1c;
 }
+
+.btn-hour-leave,.btn-tool-mode.active[data-mode="leave"] {background:#dcfce7;color:#166534;border-color:#86efac;}
+.btn-hour-leave:hover {background:#bbf7d0;}
+.mgmt-hour-card {padding:12px;border-bottom:1px solid var(--border);min-width:0;}
+.mgmt-hour-card:last-child {border-bottom:0;}
+.attendance-page [id^="action-cell-"] {white-space:nowrap;}
+.attendance-page [id^="action-cell-"] > button {display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;font-size:16px!important;}
+.attendance-page [id^="action-cell-"] > button + button {margin-left:5px;}
+.attendance-page [id^="action-cell-"] > button::after {content:none;}
+.mgmt-hour-header {display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:start;gap:10px;}
+.mgmt-hour-number {padding-top:5px;white-space:nowrap;}
+.mgmt-note-trigger {background:transparent;border:1px solid transparent;border-radius:6px;padding:5px 8px;text-align:left;font:inherit;color:var(--text-main);cursor:pointer;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0;width:100%;}
+.mgmt-note-trigger:hover,.mgmt-note-trigger:focus-visible {background:#f1f5f9;border-color:#cbd5e1;}
+.mgmt-note-trigger.is-empty {color:var(--text-muted);font-size:12px;}
+.mgmt-note-trigger:disabled {cursor:default;}
+.mgmt-hour-delete {justify-self:end;}
+.mgmt-hour-footer {display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;}
+.mgmt-hour-footer>.badge {margin-left:auto;white-space:nowrap;}
+.mgmt-hour-details {font-size:11px;color:var(--text-muted);overflow-wrap:anywhere;min-width:0;}
+@media(max-width:540px){.mgmt-hour-header {grid-template-columns:auto minmax(0,1fr) auto;gap:6px;}.mgmt-note-trigger {grid-row:2;grid-column:1 / -1;}.mgmt-hour-delete {grid-column:3;grid-row:1;}.mgmt-hour-footer {flex-wrap:wrap;}}
+.mgmt-note-editor:not([hidden]) {display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0;}
+.mgmt-note-editor .form-control {flex:1 1 180px;min-width:0;font-size:13px;}
+.mgmt-note-remove {background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;padding:4px 8px;font-size:16px;}
+.mgmt-note-remove:hover {color:#b91c1c;background:#fef2f2;border-color:#fecaca;}
+@media(max-width:540px){#studentAbsenceModal {padding:8px!important;}#studentAbsenceModal>div {padding:14px!important;}}
+
 </style>
-<link rel="stylesheet" href="../assets/css/dashboard-responsive.css?v=20261029-5">
+<link rel="stylesheet" href="../assets/css/dashboard-responsive.css?v=20261104-2">
 <link rel="stylesheet" href="../assets/css/ui-components.css?v=20261029-2">
 <link rel="stylesheet" href="../assets/css/bulk-notification-preview.css?v=20261029-2">
 <script src="../assets/js/bulk-notification-preview.js?v=20261029-3" defer></script>
@@ -982,10 +1003,6 @@ foreach ($studentRows as $sr) {
         <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()" aria-label="Εκτύπωση Δελτίου" style="display:inline-flex; align-items:center; gap:6px;" title="Εκτύπωση Επίσημου Ημερήσιου Δελτίου Απουσιών">
             <span>🖨️</span> <strong class="mobile-action-label">Εκτύπωση Δελτίου</strong>
         </button>
-        <button type="button" class="btn btn-primary btn-sm" onclick="openNewAbsenceModal()" aria-label="Καταχώρηση Απουσίας" title="Καταχώρηση Απουσίας" style="display:inline-flex; align-items:center; gap:6px;">
-            <span>➕</span> <strong class="mobile-action-label">Καταχώρηση Απουσίας</strong>
-        </button>
-        <a href="../teacher/index.php" class="btn btn-primary btn-sm dashboard-class-link" title="Μετάβαση στο Παρουσιολόγιο Τμήματος">👨‍🏫 Προβολή Τμήματος</a>
     </div>
 </div>
 
@@ -1040,6 +1057,7 @@ foreach ($studentRows as $sr) {
                 <option value="absent_only" <?= $statusFilter === 'absent_only' ? 'selected' : '' ?>>🔴 Μόνο με Απουσίες (Προεπιλογή)</option>
                 <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>👥 Όλοι οι Μαθητές (και οι Παρόντες)</option>
                 <option value="present_only" <?= $statusFilter === 'present_only' ? 'selected' : '' ?>>🟢 Μόνο Παρόντες (0 Απουσίες)</option>
+                <option value="leave_only" <?= $statusFilter === 'leave_only' ? 'selected' : '' ?>>🟢 Μόνο με Άδεια</option>
                 <option value="expulsion_only" <?= $statusFilter === 'expulsion_only' ? 'selected' : '' ?>>🟠 Μόνο με Ωριαία Αποβολή</option>
                 <option value="justified_only" <?= $statusFilter === 'justified_only' ? 'selected' : '' ?>>🔵 Μόνο με Δικαιολογημένη</option>
             </select>
@@ -1119,10 +1137,11 @@ foreach ($studentRows as $sr) {
         <div style="background:#f8fafc; padding:9px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Εργαλειο Κλικ Πλεγματος:</span>
-                <div class="inline-mode-selector" style="display:inline-flex; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:2px; gap:3px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                <div class="inline-mode-selector" style="display:inline-flex; flex-wrap:wrap; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:2px; gap:3px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
                     <button type="button" class="btn-tool-mode active" data-mode="absent" onclick="setGridToolMode('absent')" title="Κλικ σε ώρα: Καταχώρηση/αφαίρεση Κοινής Απουσίας">
                         🔴 Κοινή Απουσία
                     </button>
+                    <?php if (isAdmin()): ?><button type="button" class="btn-tool-mode" data-mode="leave" onclick="setGridToolMode('leave')" title="Καταχώρηση / αφαίρεση άδειας">🟢 Με άδεια</button><?php endif; ?>
                     <button type="button" class="btn-tool-mode" data-mode="expulsion" onclick="setGridToolMode('expulsion')" title="Κλικ σε ώρα: Καταχώρηση/αφαίρεση Ωριαίας Αποβολής">
                         🟠 Ωριαία Αποβολή
                     </button>
@@ -1131,7 +1150,7 @@ foreach ($studentRows as $sr) {
                         🔵 Δικαιολογημένη
                     </button>
                     <?php endif; ?>
-                    <button type="button" class="btn-tool-mode" data-mode="cycle" onclick="setGridToolMode('cycle')" title="Διαδοχική εναλλαγή σε κάθε κλικ: Παρών ➔ Κοινή ➔ Αποβολή ➔ Δικαιολογημένη ➔ Παρών">
+                    <button type="button" class="btn-tool-mode" data-mode="cycle" onclick="setGridToolMode('cycle')" title="Διαδοχική εναλλαγή σε κάθε κλικ: Παρών ➔ Κοινή ➔ Άδεια ➔ Αποβολή ➔ Δικαιολογημένη (με δικαίωμα) ➔ Παρών">
                         🔄 Κυκλική Εναλλαγή
                     </button>
                 </div>
@@ -1216,8 +1235,10 @@ foreach ($studentRows as $sr) {
                                                 $hasNote = ($note !== '');
                                                 $btnCls = 'btn-hour-neutral';
                                                 if ($isH) {
-                                                    $typeName = ($type === 'expulsion') ? 'Ωριαία Αποβολή' : (($type === 'justified') ? 'Δικαιολογημένη' : 'Κοινή Απουσία');
-                                                    if ($type === 'expulsion') {
+                                                    $typeName = absenceTypeLabel($type);
+                                                    if ($type === 'leave') {
+                                                        $btnCls = 'btn-hour-leave';
+                                                    } elseif ($type === 'expulsion') {
                                                         $btnCls = 'btn-hour-expulsion';
                                                     } elseif ($type === 'justified') {
                                                         $btnCls = 'btn-hour-justified';
@@ -1303,12 +1324,12 @@ foreach ($studentRows as $sr) {
                                         <span style="color:var(--text-muted); font-size:12px;">—</span>
                                     <?php endif; ?>
                                 </td>
-                                <td id="action-cell-<?= $studentId ?>" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(<?= (int)$studentId ?>,'direct')">✉️ Νέο email</button>
+                                <td id="action-cell-<?= $studentId ?>" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(<?= (int)$studentId ?>,'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
                                     <button type="button" class="btn btn-secondary btn-sm" 
                                             style="padding:4px 10px; font-size:12px; font-weight:600;" 
-                                            title="Διαχείριση ή Προσθήκη ώρας για αυτόν τον μαθητή"
+                                            title="Διαχείριση / Προσθήκη ώρας απουσίας" aria-label="Διαχείριση / Προσθήκη ώρας απουσίας"
                                             onclick="openManageModalForStudent(<?= $studentId ?>)">
-                                        <?= $hasAtt ? '✏️ Διαχείριση / + Ώρα' : '➕ Προσθήκη Ώρας' ?>
+                                        <span aria-hidden="true"><?= $hasAtt ? '✏️' : '➕' ?></span>
                                     </button>
                                 </td>
                             </tr>
@@ -1364,6 +1385,7 @@ foreach ($studentRows as $sr) {
                     <label for="newAbsenceType" style="font-weight:600; font-size:13px;">Τύπος:</label>
                     <select name="absence_type" id="newAbsenceType" class="form-control" style="font-size:13px; font-weight:600;">
                         <option value="absent">Κοινή Απουσία</option>
+                        <?php if (isAdmin()): ?><option value="leave">Με άδεια</option><?php endif; ?>
                         <option value="expulsion">Ωριαία Αποβολή</option>
                         <?php if (canJustifyAbsences()): ?>
                         <option value="justified">Δικαιολογημένη Απουσία</option>
@@ -1407,7 +1429,7 @@ foreach ($studentRows as $sr) {
 <!-- MODAL 2: ΔΙΑΧΕΙΡΙΣΗ & ΠΡΟΣΘΗΚΗ ΩΡΑΣ ΣΕ ΜΑΘΗΤΗ -->
 <!-- ======================================================= -->
 <div id="studentAbsenceModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:1000; align-items:center; justify-content:center; overflow-y:auto; padding:20px;">
-    <div style="background:#fff; border-radius:14px; max-width:640px; width:100%; padding:24px; box-shadow:var(--shadow-lg); max-height:92vh; overflow-y:auto;">
+    <div style="background:#fff; border-radius:14px; max-width:760px; width:100%; padding:24px; box-shadow:var(--shadow-lg); max-height:92vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
             <div>
                 <h3 id="mgmtStudentName" style="font-size:18px; font-weight:700; color:var(--text-main); margin:0;">Διαχείριση Απουσιών Μαθητή</h3>
@@ -1437,7 +1459,7 @@ foreach ($studentRows as $sr) {
                 <input type="hidden" name="student_id" id="quickAddStudentId" value="">
                 <input type="hidden" name="date" value="<?= htmlspecialchars($selectedDate) ?>">
 
-                <div style="flex:1; min-width:85px;">
+                <div style="flex:0 0 95px; min-width:85px;">
                     <label for="quickAddHour" style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Ώρα:</label>
                     <select name="hour" id="quickAddHour" class="form-control" style="font-size:13px;" required>
                         <?php for ($i = 1; $i <= 8; $i++): ?>
@@ -1446,26 +1468,23 @@ foreach ($studentRows as $sr) {
                     </select>
                 </div>
 
-                <div style="flex:1.5; min-width:130px;">
-                    <label for="quickAddSection" style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Τμήμα:</label>
-                    <select name="section_id" id="quickAddSection" class="form-control" style="font-size:13px;" required>
-                        <?php foreach ($allSectionsList as $secItem): ?>
-                            <option value="<?= $secItem['id'] ?>">
-                                <?= htmlspecialchars($secItem['name']) ?> (<?= htmlspecialchars($secItem['grade_name']) ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+                <input type="hidden" name="section_id" id="quickAddSection" value="0">
 
-                <div style="flex:1.5; min-width:140px;">
+                <div style="flex:0 1 175px; min-width:140px;">
                     <label for="quickAddType" style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Τύπος:</label>
                     <select name="absence_type" id="quickAddType" class="form-control" style="font-size:13px; font-weight:600;">
                         <option value="absent">Κοινή Απουσία</option>
+                        <?php if (isAdmin()): ?><option value="leave">Με άδεια</option><?php endif; ?>
                         <option value="expulsion">Ωριαία Αποβολή</option>
                         <?php if (canJustifyAbsences()): ?>
                         <option value="justified">Δικαιολογημένη</option>
                         <?php endif; ?>
                     </select>
+                </div>
+
+                <div style="flex:1 1 170px; min-width:140px;">
+                    <label for="quickAddNote" style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Σημείωση:</label>
+                    <input type="text" name="note" id="quickAddNote" class="form-control" maxlength="255" placeholder="Προαιρετική σημείωση" style="font-size:13px;">
                 </div>
 
                 <div>
@@ -1533,6 +1552,7 @@ foreach ($studentRows as $sr) {
     <button type="button" class="hour-context-item" onclick="selectContextMenuType('absent')">
         🔴 Κοινή Απουσία
     </button>
+    <?php if (isAdmin()): ?><button type="button" class="hour-context-item" onclick="selectContextMenuType('leave')">🟢 Με άδεια</button><?php endif; ?>
     <button type="button" class="hour-context-item" onclick="selectContextMenuType('expulsion')">
         🟠 Ωριαία Αποβολή
     </button>
@@ -1614,13 +1634,13 @@ function openEmailPreviewForStudent(studentId) {
 
 const canUserJustify = <?= canJustifyAbsences() ? 'true' : 'false' ?>;
 let currentGridToolMode = localStorage.getItem('absences_grid_tool_mode') || 'absent';
-if (currentGridToolMode === 'justified' && !canUserJustify) {
+if (['justified','leave'].includes(currentGridToolMode) && !canUserJustify) {
     currentGridToolMode = 'absent';
 }
 
 function setGridToolMode(mode) {
-    if (mode === 'justified' && !canUserJustify) {
-        alert('Μόνο οι διαχειριστές του σχολείου μπορούν να καταχωρούν δικαιολογημένες απουσίες.');
+    if (['justified','leave'].includes(mode) && !canUserJustify) {
+        alert('Μόνο οι διαχειριστές του σχολείου μπορούν να καταχωρούν άδεια ή δικαιολογημένη απουσία.');
         return;
     }
     currentGridToolMode = mode;
@@ -1657,8 +1677,10 @@ function renderInlineGridHtml(sid, primarySecId, attList, notesMap) {
         let titleText = '';
         if (att) {
             currentType = att.absence_type || 'absent';
-            let typeName = (currentType === 'expulsion') ? 'Ωριαία Αποβολή' : ((currentType === 'justified') ? 'Δικαιολογημένη' : 'Κοινή Απουσία');
-            if (currentType === 'expulsion') {
+            let typeName = attendanceTypeLabel(currentType);
+            if (currentType === 'leave') {
+                btnCls = 'btn-hour-leave';
+            } else if (currentType === 'expulsion') {
                 btnCls = 'btn-hour-expulsion';
             } else if (currentType === 'justified') {
                 btnCls = 'btn-hour-justified';
@@ -1790,7 +1812,7 @@ async function saveHourNoteFromModal(isDelete = false) {
         if (!noteVal) {
             btn.classList.remove('has-note');
             btn.setAttribute('data-note', '');
-            const typeName = (currentType === 'expulsion') ? 'Ωριαία Αποβολή' : ((currentType === 'justified') ? 'Δικαιολογημένη' : (currentType === 'absent' ? 'Κοινή Απουσία' : 'Παρών'));
+            const typeName = attendanceTypeLabel(currentType);
             const newTitle = currentType 
                 ? `${hour}η ώρα: ${typeName} (Κλικ για αλλαγή, Δεξί κλικ για μενού/σημείωση)`
                 : `${hour}η ώρα: Παρών (Αριστερό κλικ: καταχώρηση, Δεξί κλικ: μενού & σημείωση)`;
@@ -1799,7 +1821,7 @@ async function saveHourNoteFromModal(isDelete = false) {
         } else {
             btn.classList.add('has-note');
             btn.setAttribute('data-note', noteVal);
-            const typeName = (currentType === 'expulsion') ? 'Ωριαία Αποβολή' : ((currentType === 'justified') ? 'Δικαιολογημένη' : (currentType === 'absent' ? 'Κοινή Απουσία' : 'Παρών'));
+            const typeName = attendanceTypeLabel(currentType);
             const newTitle = currentType 
                 ? `${hour}η ώρα: ${typeName} 📝 [Σημείωση: "${noteVal}"] (Κλικ για αλλαγή, Δεξί κλικ για μενού/σημείωση)`
                 : `${hour}η ώρα: Παρών 📝 [Σημείωση: "${noteVal}"] (Αριστερό κλικ: καταχώρηση, Δεξί κλικ: μενού & σημείωση)`;
@@ -1979,6 +2001,7 @@ function updateStudentRowGrid(studentId, sectionId, attendances, previewData, no
     stObj.attendances = attList.map(a => ({
         id: a.id,
         hour: parseInt(a.hour, 10),
+        section_id: Number(a.section_id || sectionId),
         absence_type: a.absence_type || 'absent',
         note: (stObj.notes && stObj.notes[parseInt(a.hour, 10)]) || a.note || '',
         section: a.section || a.section_name || '',
@@ -2051,13 +2074,13 @@ function updateStudentRowGrid(studentId, sectionId, attendances, previewData, no
     // 6. Update Action Button Cell (Προσθήκη Ώρας / Διαχείριση)
     const actionCell = document.getElementById(`action-cell-${studentId}`);
     if (actionCell) {
-        const btnLabel = attCount > 0 ? '✏️ Διαχείριση / + Ώρα' : '➕ Προσθήκη Ώρας';
-        actionCell.innerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${studentId},'direct')">✉️ Νέο email</button>
+        const btnLabel = attCount > 0 ? '✏️' : '➕';
+        actionCell.innerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${studentId},'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
             <button type="button" class="btn btn-secondary btn-sm" 
                     style="padding:4px 10px; font-size:12px; font-weight:600;" 
-                    title="Διαχείριση ή Προσθήκη ώρας για αυτόν τον μαθητή"
+                    title="Διαχείριση / Προσθήκη ώρας απουσίας" aria-label="Διαχείριση / Προσθήκη ώρας απουσίας"
                     onclick="openManageModalForStudent(${studentId})">
-                ${btnLabel}
+                <span aria-hidden="true">${btnLabel}</span>
             </button>
         `;
     }
@@ -2216,74 +2239,83 @@ function set1to7Hours() {
 
 // Modal 2: Manage Student Absences Handlers
 function showStudentAbsenceModal(student) {
+    if (document.getElementById('studentAbsenceModal').style.display === 'flex' && document.querySelector('#mgmtHoursList .mgmt-note-editor:not([hidden])')) return;
     document.getElementById('mgmtStudentName').textContent = '✏️ ' + student.name;
     const secList = Object.keys(student.sections || {}).join(', ') || '—';
     document.getElementById('mgmtStudentSub').textContent = 'Α.Μ.: ' + student.am + ' | Τμήμα: ' + secList;
+    if (Number(document.getElementById('quickAddStudentId').value) !== Number(student.student_id) || document.getElementById('studentAbsenceModal').style.display !== 'flex') {
+        document.getElementById('quickAddNote').value = '';
+        document.getElementById('quickAddType').value = 'absent';
+    }
     document.getElementById('quickAddStudentId').value = student.student_id;
-    document.getElementById('quickAddType').value = 'absent';
     
     // Auto set quickAddSection
-    if (student.primary_section_id) {
-        document.getElementById('quickAddSection').value = student.primary_section_id;
-    }
+    document.getElementById('quickAddSection').value = student.primary_section_id || 0;
 
     const container = document.getElementById('mgmtHoursList');
     container.innerHTML = '';
 
-    if (!student.attendances || student.attendances.length === 0) {
-        container.innerHTML = '<div style="padding:14px; text-align:center; color:var(--text-muted); font-size:13px;">Δεν υπάρχουν καταχωρημένες απουσίες για τη σημερινή ημέρα (πλήρης παρουσία). Μπορείτε να προσθέσετε παρακάτω.</div>';
-    } else {
-        let tableHtml = '<table style="width:100%; border-collapse:collapse; font-size:13px;">' +
-            '<tr style="background:#f8fafc; border-bottom:1px solid var(--border); color:var(--text-muted); font-size:11px; text-transform:uppercase;">' +
-            '<th style="padding:8px 12px; text-align:left;">Ώρα</th>' +
-            '<th style="padding:8px 12px; text-align:left;">Τύπος</th>' +
-            '<th style="padding:8px 12px; text-align:left;">Τμήμα</th>' +
-            '<th style="padding:8px 12px; text-align:left;">Καθηγητής</th>' +
-            '<th style="padding:8px 12px; text-align:left;">Σημείωση</th>' +
-            '<th style="padding:8px 12px; text-align:center;">Email</th>' +
-            '<th style="padding:8px 12px; text-align:right;">Ενέργεια</th>' +
-            '</tr>';
-
-        student.attendances.forEach(att => {
-            const emailBadge = att.notified 
-                ? '<span class="badge badge-success" style="font-size:10px;">Στάλθηκε</span>' 
-                : '<span class="badge badge-warning" style="font-size:10px;">Εκκρεμεί</span>';
-
-            let typeBadge = '<span class="badge badge-info" style="font-size:10px;">Κοινή</span>';
-            if (att.absence_type === 'expulsion') {
-                typeBadge = '<span class="badge" style="background:#fef3c7; color:#92400e; font-size:10px; font-weight:700;" title="Ωριαία Αποβολή">Ω.Α.</span>';
-            } else if (att.absence_type === 'justified') {
-                typeBadge = '<span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:10px; font-weight:700;" title="Δικαιολογημένη Απουσία">Δικ.</span>';
-            }
-
-            let actionsHtml = '<div style="display:inline-flex; gap:4px; align-items:center; justify-content:flex-end;">';
-            if (att.absence_type !== 'absent') {
-                actionsHtml += `<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px; color:#dc2626; font-weight:600;" onclick="changeModalAbsenceType(${student.student_id}, ${att.hour}, ${student.primary_section_id || 1}, 'absent')" title="Αλλαγή σε Κοινή Απουσία">🔴 Κοινή</button>`;
-            }
-            if (att.absence_type !== 'expulsion') {
-                actionsHtml += `<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px; color:#d97706; font-weight:600;" onclick="changeModalAbsenceType(${student.student_id}, ${att.hour}, ${student.primary_section_id || 1}, 'expulsion')" title="Αλλαγή σε Ωριαία Αποβολή">🟠 Αποβολή</button>`;
-            }
-            if (canUserJustify && att.absence_type !== 'justified') {
-                actionsHtml += `<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 6px; font-size:10px; color:#2563eb; font-weight:600;" onclick="changeModalAbsenceType(${student.student_id}, ${att.hour}, ${student.primary_section_id || 1}, 'justified')" title="Αλλαγή σε Δικαιολογημένη">🔵 Δικαιολ.</button>`;
-            }
-            actionsHtml += `<button type="button" class="btn btn-danger btn-sm" style="padding:2px 7px; font-size:11px;" title="Διαγραφή ώρας" onclick="deleteModalAttendance(${student.student_id}, ${att.hour}, ${student.primary_section_id || 1})">🗑️</button></div>`;
-
-            tableHtml += '<tr style="border-bottom:1px solid var(--border);">' +
-                '<td style="padding:8px 12px; font-weight:700; color:var(--primary);">' + att.hour + 'η ώρα</td>' +
-                '<td style="padding:8px 12px;">' + typeBadge + '</td>' +
-                '<td style="padding:8px 12px;">' + escapeHtml(att.section) + '</td>' +
-                '<td style="padding:8px 12px; color:var(--text-muted);">' + escapeHtml(att.teacher) + '</td>' +
-                '<td style="padding:8px 12px;">' + (att.note ? '<span style="font-size:11px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; max-width:140px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + escapeHtml(att.note) + '">📝 ' + escapeHtml(att.note) + '</span>' : '<span style="color:var(--text-muted); font-size:11px;">—</span>') + '</td>' +
-                '<td style="padding:8px 12px; text-align:center;">' + emailBadge + '</td>' +
-                '<td style="padding:8px 12px; text-align:right;">' + actionsHtml + '</td>' +
-                '</tr>';
-        });
-
-        tableHtml += '</table>';
-        container.innerHTML = tableHtml;
-    }
+    const rows = student.attendances || [];
+    const sectionId = student.primary_section_id || 0;
+    container.innerHTML = rows.length ? rows.map(att => {
+        const hour = Number(att.hour);
+        const sec = Number(att.section_id || sectionId);
+        const type = att.absence_type || 'absent';
+        const locked = ['justified','leave'].includes(type) && !canUserJustify;
+        const note = (student.notes && student.notes[hour]) || att.note || '';
+        return `<article class="mgmt-hour-card">
+            <div class="mgmt-hour-header"><strong class="mgmt-hour-number">${hour}η ώρα</strong>
+                <button type="button" class="btn btn-sm btn-hour-${type}" ${locked ? 'disabled' : ''}
+                    title="Κλικ για τον επόμενο τύπο απουσίας" onclick="cycleModalAbsenceType(${student.student_id},${hour},${sec},'${type}',this)">${attendanceTypeLabel(type)} ↻</button>
+                <button type="button" class="mgmt-note-trigger ${note ? '' : 'is-empty'}" ${locked ? 'disabled' : ''}
+                    title="Κλικ για επεξεργασία σημείωσης" onclick="openModalNoteEditor(this)">${note ? escapeHtml(note) : '+ Σημείωση'}</button>
+                <button type="button" class="btn btn-danger btn-sm mgmt-hour-delete" ${locked ? 'disabled' : ''} aria-label="Διαγραφή ${hour}ης ώρας" title="Διαγραφή ώρας" onclick="deleteModalAttendance(${student.student_id},${hour},${sec})">🗑️</button>
+            </div>
+            <div hidden class="mgmt-note-editor"><input type="text" class="form-control" maxlength="255" placeholder="Προαιρετική σημείωση" aria-label="Σημείωση ${hour}ης ώρας" value="${escapeHtml(note)}">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveModalNote(${student.student_id},${hour},${sec},this)">Αποθήκευση</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.querySelector('input').value=this.parentElement.querySelector('input').defaultValue;this.parentElement.hidden=true">Ακύρωση</button>
+                ${note && !locked ? `<button type="button" class="mgmt-note-remove" title="Διαγραφή σημείωσης" aria-label="Διαγραφή σημείωσης ${hour}ης ώρας" onclick="saveModalNote(${student.student_id},${hour},${sec},this,true)">×</button>` : ''}
+            </div>
+            <div class="mgmt-hour-footer">
+                <span class="mgmt-hour-details">${escapeHtml(att.section || att.section_name || '')} · ${escapeHtml(att.teacher || att.teacher_name || '')}</span>
+                <span class="badge ${att.notified ? 'badge-success' : 'badge-warning'}">${att.notified ? '✓ Στάλθηκε email' : '↻ Εκκρεμεί email'}</span>
+            </div>
+        </article>`;
+    }).join('') : '<div style="padding:14px">Δεν υπάρχουν καταχωρημένες απουσίες. Μπορείτε να προσθέσετε παρακάτω.</div>';
 
     document.getElementById('studentAbsenceModal').style.display = 'flex';
+}
+
+function openModalNoteEditor(button) {
+    const editor = button.closest('.mgmt-hour-card').querySelector('.mgmt-note-editor');
+    editor.hidden = false;
+    editor.querySelector('input').focus();
+}
+
+function attendanceTypeLabel(type) {
+    return {absent:'Κοινή Απουσία',leave:'Με άδεια',expulsion:'Ωριαία Αποβολή',justified:'Δικαιολογημένη'}[type] || 'Παρών';
+}
+async function cycleModalAbsenceType(studentId,hour,sectionId,type,button) {
+    if (['leave','justified'].includes(type) && !canUserJustify) return;
+    const types = canUserJustify ? ['absent','leave','expulsion','justified'] : ['absent','expulsion'];
+    button.disabled = true;
+    try { await changeModalAbsenceType(studentId,hour,sectionId,types[(types.indexOf(type)+1)%types.length]); }
+    finally { button.disabled = false; }
+}
+async function saveModalNote(studentId,hour,sectionId,button,clearNote = false) {
+    const editor = button.parentElement;
+    button.disabled = true;
+    try {
+        const res = await fetch('../api/toggle_student_absence.php', {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':'<?= getCsrfToken() ?>'},
+            body:JSON.stringify({student_id:studentId,hour,section_id:sectionId,date:document.getElementById('dateSelect')?.value || '<?= $selectedDate ?>',action:'set_note',note:clearNote ? '' : editor.querySelector('input').value})
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Αποτυχία αποθήκευσης');
+        editor.hidden = true;
+        updateStudentRowGrid(studentId,sectionId,data.attendances,data.preview,data.notes);
+    } catch(e) { alert(e.message || 'Σφάλμα επικοινωνίας'); }
+    finally { button.disabled = false; }
 }
 
 async function changeModalAbsenceType(studentId, hour, sectionId, newType) {
@@ -2349,6 +2381,11 @@ async function deleteModalAttendance(studentId, hour, sectionId) {
 
 async function handleQuickAddHourSubmit(event) {
     event.preventDefault();
+    const submitButton = document.getElementById('quickAddHourForm').querySelector('button[type="submit"]');
+    if (submitButton.disabled) return;
+    const noteInput = document.getElementById('quickAddNote');
+    const noteText = noteInput.value.trim();
+    submitButton.disabled = true;
     const studentId = parseInt(document.getElementById('quickAddStudentId').value, 10);
     const hour = parseInt(document.getElementById('quickAddHour').value, 10);
     const sectionId = parseInt(document.getElementById('quickAddSection').value, 10);
@@ -2368,11 +2405,13 @@ async function handleQuickAddHourSubmit(event) {
                 date: selectedDate,
                 section_id: sectionId,
                 action: 'set',
-                absence_type: absenceType
+                absence_type: absenceType,
+                ...(noteText ? {note: noteText} : {})
             })
         });
         const data = await res.json();
         if (data.success) {
+            if (noteInput.value.trim() === noteText) noteInput.value = '';
             updateStudentRowGrid(studentId, sectionId, data.attendances, data.preview, data.notes);
             updateGlobalKpis(data.kpi);
         } else {
@@ -2380,10 +2419,13 @@ async function handleQuickAddHourSubmit(event) {
         }
     } catch (e) {
         alert('Σφάλμα επικοινωνίας με το σύστημα');
+    } finally {
+        submitButton.disabled = false;
     }
 }
 
 function closeStudentAbsenceModal() {
+    document.querySelectorAll('#mgmtHoursList .mgmt-note-editor').forEach(el => el.hidden = true);
     document.getElementById('studentAbsenceModal').style.display = 'none';
 }
 
@@ -2599,6 +2641,7 @@ document.addEventListener('keydown', function(e) {
             if (currentStatusFilter === 'all') shouldBeVisible = true;
             else if (currentStatusFilter === 'absent_only') shouldBeVisible = hasAtt;
             else if (currentStatusFilter === 'present_only') shouldBeVisible = !hasAtt;
+            else if (currentStatusFilter === 'leave_only') shouldBeVisible = attList.some(a => a.absence_type === 'leave');
             else if (currentStatusFilter === 'expulsion_only') shouldBeVisible = attList.some(a => a.absence_type === 'expulsion');
             else if (currentStatusFilter === 'justified_only') shouldBeVisible = attList.some(a => a.absence_type === 'justified');
 
@@ -2730,8 +2773,8 @@ document.addEventListener('keydown', function(e) {
             <td id="total-cell-${sid}" style="padding:10px 12px; text-align:center; font-weight:700; font-size:14px;"></td>
             <td style="padding:10px 12px; font-size:12px; line-height:1.4;">${guardiansHtml}</td>
             <td id="email-cell-${sid}" style="padding:10px 12px; text-align:center;"></td>
-            <td id="action-cell-${sid}" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${sid},'direct')">✉️ Νέο email</button>
-                <button type="button" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:12px; font-weight:600;" onclick='onLiveManageClick(${sid})'>⚙️ Διαχείριση</button>
+            <td id="action-cell-${sid}" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${sid},'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
+                <button type="button" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:12px; font-weight:600;" onclick='onLiveManageClick(${sid})' title="Διαχείριση / Προσθήκη ώρας απουσίας" aria-label="Διαχείριση / Προσθήκη ώρας απουσίας"><span aria-hidden="true">✏️</span></button>
             </td>
         `;
 
@@ -2815,8 +2858,8 @@ document.addEventListener('keydown', function(e) {
             container.removeChild(container.firstElementChild);
         }
 
-        const typeColor = notif.absence_type === 'expulsion' ? '#d97706' : (notif.absence_type === 'justified' ? '#2563eb' : '#dc2626');
-        const icon = notif.absence_type === 'expulsion' ? '⚠️' : (notif.absence_type === 'justified' ? 'ℹ️' : '🔔');
+        const typeColor = notif.absence_type === 'leave' ? '#166534' : notif.absence_type === 'expulsion' ? '#d97706' : (notif.absence_type === 'justified' ? '#2563eb' : '#dc2626');
+        const icon = notif.absence_type === 'leave' ? '🟢' : notif.absence_type === 'expulsion' ? '⚠️' : (notif.absence_type === 'justified' ? 'ℹ️' : '🔔');
 
         const toast = document.createElement('div');
         toast.className = 'live-toast';

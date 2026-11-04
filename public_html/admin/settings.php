@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__."/../includes/absence_types.php";
 // admin/settings.php - System, Multi-SMTP Profiles & Email Template Configuration
 $pageTitle = 'Ρυθμίσεις & Email';
 require_once __DIR__ . '/header.php';
@@ -354,7 +355,7 @@ $schoolName = getSchoolSetting('school_name', '1ο Γενικό Λύκειο');
 $schoolEmail = getSchoolSetting('school_email', 'mail@myschool.mysch.gr');
 $schoolPhone = getSchoolSetting('school_phone', '2100000000');
 $templateSubject = getSchoolSetting('email_template_subject', 'Ενημέρωση Απουσιών Μαθητή - {school_name}');
-$templateBody = getSchoolSetting('email_template_body', "Αγαπητέ κηδεμόνα {guardian_name_voc},\n\nΣας ενημερώνουμε ότι {student_title} {student_full_name} σημείωσε σήμερα {date} απουσία κατά τις εξής διδακτικές ώρες: {hours}.\n\nΜε εκτίμηση,\nΗ Διεύθυνση του {school_name}\nΤηλ: {school_phone}");
+$templateBody = getSchoolSetting('email_template_body', defaultAbsenceEmailTemplate());
 $maskStudentName = getSchoolSetting('mask_student_name', '0');
 $bellSchedule = getBellSchedule();
 
@@ -561,6 +562,12 @@ $allAcademicYears = getAllAcademicYearsWithStats();
             </div>
         </div>
     </form>
+</div>
+
+<div class="card" id="grading-settings" style="margin-bottom:28px;">
+    <h2>Βαθμολογία</h2>
+    <p>Όρια βαθμών, βήμα αριθμητικής εισαγωγής και μπάρας, και άνοιγμα περιόδων ανά σχολικό έτος.</p>
+    <a class="btn btn-primary" href="marks.php?view=settings">Ρυθμίσεις βαθμολογίας</a>
 </div>
 
 <!-- 3. Academic Year Management Section -->

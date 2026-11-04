@@ -158,7 +158,10 @@ foreach ($absences as $att) {
                                     <?php
                                         $cls = 'badge-gray';
                                         $lbl = $r['hour'] . 'η';
-                                        if ($r['absence_type'] === 'justified') {
+                                        if ($r['absence_type'] === 'leave') {
+                                            $cls = 'badge-success';
+                                            $lbl .= ' (Με άδεια)';
+                                        } elseif ($r['absence_type'] === 'justified') {
                                             $cls = 'badge-success';
                                             $lbl .= ' (δικ.)';
                                         } elseif ($r['absence_type'] === 'expulsion') {

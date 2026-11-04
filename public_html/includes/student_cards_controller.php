@@ -52,13 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_justify_range'
             foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $counts[$row['absence_type'] ?? 'absent']=(int)$row['n'];
             if (!$counts) throw new DomainException('Δεν υπάρχουν απουσίες για την επιλεγμένη ημέρα.');
             if ($action === 'save_unjustified') {
-                if (($counts['absent']??0)+($counts['expulsion']??0)===0 && $unjustified !== '') throw new DomainException('Η ημέρα δεν περιέχει αδικαιολόγητες απουσίες ή αποβολές.');
+                if (($counts['absent']??0)+($counts['leave']??0)+($counts['expulsion']??0)===0 && $unjustified !== '') throw new DomainException('Η ημέρα δεν περιέχει αδικαιολόγητες απουσίες ή αποβολές.');
                 $q=$db->prepare('INSERT INTO absence_day_reasons(academic_year_id,student_id,date,unjustified_reason) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE unjustified_reason=VALUES(unjustified_reason),updated_at=NOW()');
                 $q->execute([$activeYearId,$studentId,$date,$unjustified===''?null:unjustifiedReasons()[$unjustified]]);
                 $message = 'Η αιτία αδικαιολόγητης απουσίας αποθηκεύτηκε. Οι καταστάσεις των απουσιών δεν άλλαξαν.';
             } else {
-                if (($counts['absent']??0)+($counts['justified']??0)===0) throw new DomainException('Υπάρχουν μόνο αποβολές· δεν επιτρέπεται να μετατραπούν σε δικαιολογημένες απουσίες.');
-                $q=$db->prepare("UPDATE attendance SET absence_type='justified',updated_at=NOW() WHERE student_id=? AND academic_year_id=? AND date=? AND is_absent=1 AND (absence_type='absent' OR absence_type IS NULL)");
+                if (($counts['absent']??0)+($counts['leave']??0)+($counts['justified']??0)===0) throw new DomainException('Υπάρχουν μόνο αποβολές· δεν επιτρέπεται να μετατραπούν σε δικαιολογημένες απουσίες.');
+                $q=$db->prepare("UPDATE attendance SET absence_type='justified',updated_at=NOW() WHERE student_id=? AND academic_year_id=? AND date=? AND is_absent=1 AND (absence_type IN ('absent','leave') OR absence_type IS NULL)");
                 $q->execute([$studentId,$activeYearId,$date]);$affected=$q->rowCount();
                 $q=$db->prepare('INSERT INTO absence_day_reasons(academic_year_id,student_id,date,justification_reason,protocol,justified_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE justification_reason=VALUES(justification_reason),protocol=VALUES(protocol),justified_by=VALUES(justified_by),updated_at=NOW()');
                 $q->execute([$activeYearId,$studentId,$date,justificationReasons()[$code],trim($protocol),$actor['id']]);
@@ -108,7 +108,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $exportRangeValid) {
             s.id, s.am, s.last_name, s.first_name, s.guardian_email, s.guardian_mobile,
             GROUP_CONCAT(DISTINCT sec.name ORDER BY sec.name SEPARATOR ', ') as section_names,
             COUNT(DISTINCT CASE WHEN a.is_absent = 1 THEN a.id END) as total_absences,
-            COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND (a.absence_type = 'absent' OR a.absence_type IS NULL) THEN a.id END) as unjustified,
+            COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND (a.absence_type IN ('absent','leave') OR a.absence_type IS NULL) THEN a.id END) as unjustified,
             COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'justified' THEN a.id END) as justified,
             COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'expulsion' THEN a.id END) as expulsions
         FROM students s
@@ -206,7 +206,7 @@ $studentsQuery = "
         s.id, s.am, s.last_name, s.first_name, s.gender, s.guardian_name, s.guardian_email, s.guardian_mobile,
         GROUP_CONCAT(DISTINCT sec.name ORDER BY sec.name SEPARATOR ', ') as section_names,
         COUNT(DISTINCT CASE WHEN a.is_absent = 1 THEN a.id END) as total_absences,
-        COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND (a.absence_type = 'absent' OR a.absence_type IS NULL) THEN a.id END) as unjustified,
+        COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND (a.absence_type IN ('absent','leave') OR a.absence_type IS NULL) THEN a.id END) as unjustified,
         COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'justified' THEN a.id END) as justified,
         COUNT(DISTINCT CASE WHEN a.is_absent = 1 AND a.absence_type = 'expulsion' THEN a.id END) as expulsions,
         MAX(a.date) as last_absence_date
