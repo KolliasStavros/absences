@@ -1,0 +1,4 @@
+.attendance-calendar-panel .absence-calendar { margin:0; }
+.attendance-calendar-day { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:54px; gap:2px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); font-size:13px; line-height:1.2; }
+.attendance-calendar-panel .calendar-absence-count { font-size:10px; white-space:nowrap; font-weight:400; }
+.attendance-calendar-panel .attendance-calendar-total { margin:14px 0 0; padding-top:12px; border-top:1px solid var(--border); font-size:13px; font-weight:600; }

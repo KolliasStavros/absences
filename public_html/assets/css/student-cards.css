@@ -78,3 +78,31 @@
         .absence-filter-actions { flex-wrap:wrap; }
         .absence-cards-page .absence-cards-table .absence-student-row { min-width:0; }
     }
+
+.summary-email-toolbar { display:flex; justify-content:flex-end; align-items:center; gap:12px; padding:14px 18px; margin-bottom:16px; flex-wrap:wrap; }
+.summary-selection-badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; padding:2px 6px; border-radius:12px; background:#0003; color:inherit; font-weight:700; }
+.absence-cards-table .cards-select-cell { width:38px; text-align:center; }
+.cards-select-cell input { width:15px; height:15px; cursor:pointer; }
+.absence-calendar .absence-calendar-day { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:54px; line-height:1.2; }
+.absence-calendar-day .calendar-absence-count { font-size:10px; font-weight:400; white-space:nowrap; line-height:1.2; opacity:.85; }
+.summary-options { display:flex; flex-wrap:wrap; align-items:end; gap:10px 16px; padding:12px; border:1px solid var(--border); border-radius:8px; margin:0 0 14px; }
+.summary-options label { display:block; font-size:13px; }
+.summary-options .form-control { display:block; margin-top:4px; }
+.summary-recipients { font-size:13px; margin:8px 0; }
+.summary-recipients label { display:inline-block; margin:0 12px 4px 0; overflow-wrap:anywhere; }
+@media screen and (max-width:768px) {
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row { grid-template-columns:24px minmax(0,1fr) auto; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td { display:block; grid-column:auto; grid-row:auto; align-self:auto; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(1) { grid-column:1; grid-row:1 / 3; padding:4px 0 !important; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(2),
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(8),
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(3) > .absence-contacts { display:none; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(3) { grid-column:2; grid-row:1; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(4) { grid-column:2; grid-row:2; background:transparent; padding:0 !important; border-radius:0; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(5) { grid-column:3; grid-row:1 / 3; align-self:center; padding:8px !important; background:var(--bg-main); border-radius:10px; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(6) { grid-column:2 / -1; grid-row:3; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(7) { grid-column:2 / -1; grid-row:4; text-align:left !important; }
+    .absence-cards-page .absence-cards-table.summary-enabled-table .absence-student-row > td:nth-child(9) { grid-column:1 / -1; grid-row:5; padding-top:10px !important; border-top:1px solid var(--border); }
+    .summary-options { align-items:stretch; }
+    .summary-options .form-control { font-size:16px; min-height:40px; }
+}

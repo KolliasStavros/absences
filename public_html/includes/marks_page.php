@@ -53,7 +53,9 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
             if(!is_array($teachers)||!is_array($sections)) throw new DomainException('Μη έγκυρες αντιστοιχίσεις.');
             $teacherMap=[]; $sectionMap=[];
             foreach($preview['rows'] as $row) { $teacherMap[$row['teacher_key']]=$teachers[hash('sha256',$row['teacher_key'])]??null; $sectionMap[$row['section']]=$sections[hash('sha256',$row['section'])]??null; }
-            $n=marksCommitImport($db,$yearId,$user,$preview,$teacherMap,$sectionMap); unset($_SESSION['marks_import']); $message='Αποθηκεύτηκαν '.$n.' αναθέσεις. Οι παλιές αναθέσεις που λείπουν από την αναφορά δεν διαγράφηκαν.';
+            $policy=$_POST['assignment_policy']??null;
+            if(!is_string($policy)||!in_array($policy,['preserve','replace'],true)) throw new DomainException('Επιλέξτε διατήρηση ή αντικατάσταση χειροκίνητων αναθέσεων.');
+            $n=marksCommitImport($db,$yearId,$user,$preview,$teacherMap,$sectionMap,$policy); unset($_SESSION['marks_import']); $message='Επεξεργάστηκαν '.$n.' γραμμές αναθέσεων. '.($policy==='preserve'?'Διατηρήθηκαν οι χειροκίνητες αλλαγές.':'Οι αναθέσεις των μαθημάτων της αναφοράς αντικαταστάθηκαν από το MySchool.');
         } elseif($action==='settings') {
             if(!is_array($_POST['periods']??null)) throw new DomainException('Μη έγκυρες ρυθμίσεις.');
             marksSaveSettings($db,$yearId,$_POST['periods']); $message='Οι ρυθμίσεις αποθηκεύτηκαν χωρίς μεταβολή των υπαρχόντων βαθμών.';
@@ -61,11 +63,26 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
             $course=schoolRequestId($_POST['course_id']??null); $period=schoolRequestId($_POST['period_id']??null);
             if(!$course||!$period||!is_string($_POST['reason']??null)||!ctype_digit((string)($_POST['version']??''))) throw new DomainException('Μη έγκυρο αίτημα.');
             marksReopen($db,$yearId,$course,$period,$user,$_POST['reason'],(int)$_POST['version']); $message='Η υποβολή άνοιξε ξανά. Η αιτιολογία καταγράφηκε.';
-        } elseif(in_array($action,['sync','course_settings','teacher_access'],true)) {
+        } elseif($action==='bulk_preview') {
+            // Read-only preview is rendered below after the same CSRF/year/admin checks.
+        } elseif($action==='bulk_replace') {
+            $bulk=$_SESSION['marks_bulk']??null;
+            if(!is_array($bulk)||$bulk['year_id']!==$yearId||time()-$bulk['created']>600||!is_string($_POST['bulk_token']??null)||!hash_equals($bulk['token'],$_POST['bulk_token'])) throw new DomainException('Η προεπισκόπηση έληξε. Δημιουργήστε νέα.');
+            $selected=$_POST['bulk_selected']??[];
+            if(!is_array($selected)||!$selected) throw new DomainException('Επιλέξτε διδασκαλίες προς αντικατάσταση.');
+            $input=$bulk['input']; $input['course_versions']=[];
+            foreach($selected as $id) {
+                $id=schoolRequestId($id);
+                if(!$id||!isset($bulk['input']['course_versions'][$id])) throw new DomainException('Μη έγκυρη επιλογή διδασκαλίας.');
+                $input['course_versions'][$id]=$bulk['input']['course_versions'][$id];
+            }
+            marksBulkReplace($db,$yearId,$user,$input); unset($_SESSION['marks_bulk']);
+            $message='Η αντικατάσταση καθηγητή ολοκληρώθηκε στις επιλεγμένες διδασκαλίες.';
+        } elseif(in_array($action,['sync','course_settings','teacher_access','assignment_add','assignment_replace'],true)) {
             $course=schoolRequestId($_POST['course_id']??null); if(!$course) throw new DomainException('Μη έγκυρο μάθημα.');
             marksManageCourse($db,$yearId,$course,$user,$_POST); $message='Η αλλαγή αποθηκεύτηκε.';
         } else throw new DomainException('Μη υποστηριζόμενη ενέργεια.');
-        $_SESSION['marks_flash']=$message; header('Location: '.$url($_GET),true,303); exit;
+        if($action!=='bulk_preview') { $_SESSION['marks_flash']=$message; header('Location: '.$url($_GET),true,303); exit; }
     } catch(DomainException $e) { $error=$e->getMessage(); }
     catch(Throwable $e) { $error=safeError($e); }
     $ready=marksReady($db);
@@ -115,11 +132,11 @@ if (!empty($marksAdminLayout)) {
 <!doctype html><html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Βαθμολογία · <?= $h($schoolName) ?></title>
 <link rel="stylesheet" href="../assets/css/style.css?v=daylight-20261029-1">
-<link rel="stylesheet" href="../assets/css/marks.css?v=4">
+<link rel="stylesheet" href="../assets/css/marks.css?v=5">
 <script src="../assets/js/theme.js?v=20261029-1"></script>
 </head><body>
 <?php require __DIR__.'/../teacher/navbar.php'; } ?>
-<script src="../assets/js/marks.js?v=3" defer></script>
+<script src="../assets/js/marks.js?v=5" defer></script>
 <button class="btn btn-secondary btn-sm marks-mobile-toggle" type="button" data-marks-menu aria-controls="marks-navigation" aria-expanded="false">☰ Μενού βαθμολογίας</button>
 <div class="marks-layout"><nav class="marks-sidebar" id="marks-navigation" aria-label="Πλοήγηση βαθμολογίας"><h2>Βαθμολογία</h2>
 <?php
@@ -148,15 +165,31 @@ foreach($nav as $key=>$label): ?><a href="<?= $h($url(['view'=>$key])) ?>" <?= $
 <?php $preview=$_SESSION['marks_import']??null;
 if(is_array($preview)&&$preview['year_id']===$yearId&&time()-$preview['created']<=1800): $matches=marksImportMatches($db,$preview); ?>
 <section class="card"><h2>Αντιστοιχίσεις</h2><p><?= count($preview['rows']) ?> γραμμές αναθέσεων. Επιβεβαιώστε τους λογαριασμούς και τα υπάρχοντα τμήματα. Για καθηγητές που λείπουν μπορείτε να δημιουργήσετε εκκρεμή λογαριασμό χωρίς κωδικό. Η πρόσβαση ενεργοποιείται χωριστά από τη διαχείριση καθηγητών, αφού οριστούν πραγματικά στοιχεία σύνδεσης.</p>
-<form method="post"><?php $baseFields(); ?><input type="hidden" name="action" value="commit_import"><input type="hidden" name="preview_token" value="<?= $h($preview['token']) ?>">
+<form method="post"><?php $baseFields(); ?><input type="hidden" name="action" value="commit_import"><input type="hidden" name="preview_token" value="<?= $h($preview['token']) ?>"><fieldset class="marks-fieldset"><legend>Πώς θέλετε να αντιμετωπιστούν οι χειροκίνητες αλλαγές αναθέσεων;</legend><label><input type="radio" name="assignment_policy" value="preserve" checked required> Διατήρηση χειροκίνητων αλλαγών</label><br><label><input type="radio" name="assignment_policy" value="replace" required> Αντικατάσταση από το MySchool</label><p class="marks-help">Η αντικατάσταση αφορά μόνο τα μαθήματα της αναφοράς: ανακαλεί τις προηγούμενες αναθέσεις τους και εφαρμόζει τις νέες. Η διατήρηση προστατεύει ολόκληρη τη σύνθεση καθηγητών των μαθημάτων που άλλαξαν χειροκίνητα. Βαθμοί και οριστικές υποβολές δεν αλλάζουν από την επιλογή αυτή.</p></fieldset>
 <div class="marks-table-wrap"><table class="marks-table marks-mapping"><caption>Καθηγητές</caption><thead><tr><th>Όνομα στην αναφορά</th><th>Υπάρχων λογαριασμός</th></tr></thead><tbody>
 <?php foreach($matches['teachers'] as $key=>$match): ?><tr><td><?= $h($match['name']) ?></td><td><select class="form-control" required name="teacher_map[<?= hash('sha256',$key) ?>]" aria-label="<?= $h('Λογαριασμός '.$match['name']) ?>"><option value="">Επιλέξτε λογαριασμό</option><option value="new" <?= $match['id']==='new'?'selected':'' ?>>Δημιουργία εκκρεμούς λογαριασμού από την αναφορά</option><?php foreach($matches['users'] as $u): ?><option value="<?= (int)$u['id'] ?>" <?= (string)$match['id']===(string)$u['id']?'selected':'' ?>><?= $h($u['name'].' · '.$u['email'].($u['status']==='inactive'?' · Ανενεργός':'')) ?></option><?php endforeach; ?></select></td></tr><?php endforeach; ?></tbody></table></div>
 <div class="marks-table-wrap"><table class="marks-table marks-mapping"><caption>Τμήματα</caption><thead><tr><th>Τμήμα στην αναφορά</th><th>Υπάρχον τμήμα</th></tr></thead><tbody>
 <?php foreach($matches['section_matches'] as $name=>$id): ?><tr><td><?= $h($name) ?></td><td><select class="form-control" required name="section_map[<?= hash('sha256',$name) ?>]" aria-label="<?= $h('Αντιστοίχιση τμήματος '.$name) ?>"><option value="">Επιλέξτε τμήμα</option><?php foreach($matches['sections'] as $s): ?><option value="<?= (int)$s['id'] ?>" <?= $id==$s['id']?'selected':'' ?>><?= $h($s['name']) ?></option><?php endforeach; ?></select></td></tr><?php endforeach; ?></tbody></table></div>
 <details><summary>Γραμμές της αναφοράς</summary><div class="marks-table-wrap"><table class="marks-table"><thead><tr><th>Καθηγητής</th><th>Τμήμα</th><th>Μάθημα</th><th>Ώρες</th><th>Ανάθεση</th></tr></thead><tbody><?php foreach($preview['rows'] as $r): ?><tr><?php foreach(['teacher_name','section','subject','hours','assignment'] as $key): ?><td><?= $h($r[$key]) ?></td><?php endforeach; ?></tr><?php endforeach; ?></tbody></table></div></details>
-<p class="marks-help">Οι υπάρχοντες βαθμοί διατηρούνται. Αναθέσεις που λείπουν από την αναφορά δεν απενεργοποιούνται αυτόματα. Η επιβεβαίωση ενεργοποιεί τις αναθέσεις που περιλαμβάνονται. Αν αλλάζει λίστα μαθητών με οριστική υποβολή, απαιτείται πρώτα επανάνοιγμα.</p><button class="btn btn-primary">Επιβεβαίωση εισαγωγής αναθέσεων</button></form></section><?php endif; ?>
-<?php elseif(in_array($view,['entry','manage','history'],true)): ?>
-<section class="card"><form method="get" class="marks-filters"><input type="hidden" name="view" value="<?= $h($view) ?>"><label>Μάθημα και τμήμα<select class="form-control" name="course_id" data-marks-filter data-original="<?= (int)$courseId ?>"><option value="">Επιλέξτε διδασκαλία</option><?php foreach($courses as $c): ?><option value="<?= (int)$c['id'] ?>" <?= $courseId==$c['id']?'selected':'' ?>><?= $h($c['section_name'].' · '.$c['subject_name'].(!$c['is_active']?' · Ανενεργό':'')) ?></option><?php endforeach; ?></select></label>
+<p class="marks-help">Οι υπάρχοντες βαθμοί διατηρούνται. Αναθέσεις που λείπουν από την αναφορά δεν απενεργοποιούνται αυτόματα. Οι αναθέσεις εφαρμόζονται σύμφωνα με την παραπάνω επιλογή. Αν αλλάζει λίστα μαθητών με οριστική υποβολή, απαιτείται πρώτα επανάνοιγμα.</p><button class="btn btn-primary">Επιβεβαίωση εισαγωγής αναθέσεων</button></form></section><?php endif; ?>
+<?php elseif($view==='manage'&&$admin): ?>
+<?php require __DIR__.'/marks_manage.php'; ?>
+<?php elseif(in_array($view,['entry','history'],true)): ?>
+<?php
+$filterGrades=[]; $filterSections=[]; $selectedGrade=''; $selectedSection='';
+foreach($courses as $c) {
+    $filterGrades[$c['grade_id']]=$c['grade_name'];
+    $filterSections[$c['section_id']]=['name'=>$c['section_name'],'grade_id'=>$c['grade_id']];
+    if($courseId==$c['id']) { $selectedGrade=(string)$c['grade_id']; $selectedSection=(string)$c['section_id']; }
+}
+asort($filterGrades,SORT_NATURAL);
+?>
+<section class="card"><form method="get" class="marks-filters"><input type="hidden" name="view" value="<?= $h($view) ?>">
+<?php if($view==='entry'): ?>
+<label>Τάξη<select class="form-control" data-marks-grade><option value="">Επιλέξτε τάξη</option><?php foreach($filterGrades as $id=>$name): ?><option value="<?= (int)$id ?>" <?= $selectedGrade===(string)$id?'selected':'' ?>><?= $h($name) ?></option><?php endforeach; ?></select></label>
+<label>Τμήμα<select class="form-control" data-marks-section><option value="">Επιλέξτε τμήμα</option><?php foreach($filterSections as $id=>$section): ?><option value="<?= (int)$id ?>" data-grade="<?= (int)$section['grade_id'] ?>" <?= $selectedSection===(string)$id?'selected':'' ?>><?= $h($section['name']) ?></option><?php endforeach; ?></select></label>
+<?php endif; ?>
+<label><?= $view==='entry'?'Μάθημα':'Μάθημα και τμήμα' ?><select class="form-control" name="course_id" data-marks-filter <?= $view==='entry'?'data-marks-course required':'' ?> data-original="<?= (int)$courseId ?>"><option value=""><?= $view==='entry'?'Επιλέξτε μάθημα':'Επιλέξτε διδασκαλία' ?></option><?php foreach($courses as $c): ?><option value="<?= (int)$c['id'] ?>" data-section="<?= (int)$c['section_id'] ?>" <?= $courseId==$c['id']?'selected':'' ?>><?= $h(($view==='entry'?'':$c['section_name'].' · ').$c['subject_name'].(!$c['is_active']?' · Ανενεργό':'')) ?></option><?php endforeach; ?></select></label>
 <?php if($view==='entry'): ?><label>Περίοδος<select class="form-control" name="period_id" data-marks-filter data-original="<?= (int)$periodId ?>"><?php foreach($periods as $p): ?><option value="<?= (int)$p['id'] ?>" <?= $periodId==$p['id']?'selected':'' ?>><?= $h($p['name']) ?></option><?php endforeach; ?></select></label><?php endif; ?><button class="btn btn-secondary">Προβολή</button></form></section>
 <?php if($course&&$view==='entry'&&$period): [$min,$max,$step]=marksScale($period); $locked=$submission['status']==='submitted'||!$period['is_open']||!$course['is_active']||($period['code']==='written'&&!$course['has_written_exam']); ?>
 <section class="card">
@@ -186,14 +219,9 @@ foreach($statusOptions as $key=>$label): ?><option value="<?= $key ?>" <?= $r['m
 <?php if(!$locked): ?><div class="marks-actions"><span id="marks-progress" class="marks-progress" role="status"></span><div><button class="btn btn-secondary" type="submit" data-save-action="save">Αποθήκευση</button><button class="btn btn-primary" type="submit" data-save-action="submit">Οριστική υποβολή</button></div></div><?php else: ?><span id="marks-progress" class="marks-progress"></span><?php endif; ?></fieldset>
 <div id="marks-message" class="marks-notice" role="status" tabindex="-1" hidden></div></form><noscript><p>Απαιτείται JavaScript για τη συγχρονισμένη καταχώριση βαθμών.</p></noscript></section>
 <?php if($admin&&$submission['status']==='submitted'): ?><section class="card"><h2>Επανάνοιγμα υποβολής</h2><form method="post" class="marks-inline-form"><?php $baseFields(); ?><input type="hidden" name="action" value="reopen"><input type="hidden" name="course_id" value="<?= $courseId ?>"><input type="hidden" name="period_id" value="<?= $periodId ?>"><input type="hidden" name="version" value="<?= (int)$submission['version'] ?>"><label>Αιτιολογία <input class="form-control" name="reason" required maxlength="255"></label><button class="btn btn-secondary">Επανάνοιγμα</button></form></section><?php endif; ?>
-<?php elseif($course&&$view==='manage'&&$admin): ?>
-<section class="card"><h2><?= $h($course['section_name'].' · '.$course['subject_name']) ?></h2><form method="post" class="marks-inline-form"><?php $baseFields(); ?><input type="hidden" name="action" value="course_settings"><input type="hidden" name="course_id" value="<?= $courseId ?>"><input type="hidden" name="course_version" value="<?= (int)$course['version'] ?>"><label><input type="checkbox" name="has_written_exam" <?= $course['has_written_exam']?'checked':'' ?>> Γραπτή εξέταση</label><label><input type="checkbox" name="is_active" <?= $course['is_active']?'checked':'' ?>> Ενεργό μάθημα</label><button class="btn btn-primary">Αποθήκευση</button></form>
-<h3>Μαθητές από τα τμήματα</h3><p>Εκκρεμούν <?= count($diff['add']) ?> προσθήκες και <?= count($diff['remove']) ?> αποχωρήσεις. Οι παλιές συμμετοχές και οι βαθμοί τους διατηρούνται.</p><form method="post"><?php $baseFields(); ?><input type="hidden" name="course_id" value="<?= $courseId ?>"><input type="hidden" name="course_version" value="<?= (int)$course['version'] ?>"><button class="btn btn-secondary" name="action" value="sync">Εφαρμογή αλλαγών λίστας μαθητών</button></form>
-<h3>Καθηγητές διδασκαλίας</h3><?php $q=$db->prepare('SELECT ct.*,u.name FROM course_teachers ct JOIN users u ON u.id=ct.teacher_id WHERE course_offering_id=? ORDER BY u.name'); $q->execute([$courseId]); foreach($q->fetchAll(PDO::FETCH_ASSOC) as $ct): ?><form method="post" class="marks-inline-form" style="margin:12px 0"><?php $baseFields(); ?><input type="hidden" name="action" value="teacher_access"><input type="hidden" name="course_id" value="<?= $courseId ?>"><input type="hidden" name="course_version" value="<?= (int)$course['version'] ?>"><input type="hidden" name="teacher_id" value="<?= (int)$ct['teacher_id'] ?>"><label><input type="checkbox" name="teacher_active" <?= $ct['is_active']?'checked':'' ?>> <?= $h($ct['name']) ?></label><span class="marks-help"><?= $h($ct['assignment_type']) ?></span><button class="btn btn-secondary btn-sm">Ενημέρωση πρόσβασης</button></form><?php endforeach; ?>
-<p><a href="<?= $h($url(['view'=>'history','course_id'=>$courseId])) ?>">Ιστορικό αλλαγών μαθήματος</a></p></section>
 <?php elseif($course&&$view==='history'&&$admin): $q=$db->prepare('SELECT a.*,u.name FROM mark_audit_log a JOIN users u ON u.id=a.changed_by WHERE course_offering_id=? ORDER BY a.id DESC LIMIT 200'); $q->execute([$courseId]); ?>
 <?php
-$historyLabels = ['import' => 'Εισαγωγή διδασκαλίας', 'assignment_import' => 'Εισαγωγή ανάθεσης'];
+$historyLabels = ['assignment_manual'=>'Χειροκίνητη αλλαγή ανάθεσης','assignment_reset'=>'Αντικατάσταση αναθέσεων από MySchool','import' => 'Εισαγωγή διδασκαλίας', 'assignment_import' => 'Εισαγωγή ανάθεσης'];
 $historyValue = static function ($raw, $action) use ($h, $specialMarkLabels) {
     $data = json_decode((string)$raw, true);
     if ($data === null && ($raw === null || $raw === '' || $raw === 'null')) {
@@ -242,17 +270,22 @@ $historyValue = static function ($raw, $action) use ($h, $specialMarkLabels) {
     </div>
 </section>
 <?php else: ?><p class="marks-notice">Επιλέξτε μάθημα και τμήμα για να συνεχίσετε.</p><?php endif; ?>
+<?php elseif($view==='overview'&&$admin): ?>
+<?php require __DIR__.'/marks_overview.php'; ?>
 <?php else: ?>
-<?php $stats=[]; $courseIds=array_fill_keys(array_map('intval',array_column($courses,'id')),true);
+<?php
+if($view==='submissions') {
+    require __DIR__.'/marks_filters.php';
+    $courses=$overviewCourses; $periods=$overviewPeriods;
+}
+$stats=[]; $courseIds=array_fill_keys(array_map('intval',array_column($courses,'id')),true);
 $visibleIds=$courseIds?implode(',',array_keys($courseIds)):'0';
 $q=$db->prepare("SELECT cs.course_offering_id,m.assessment_period_id,COUNT(*) AS complete FROM student_marks m JOIN course_students cs ON cs.id=m.course_student_id JOIN course_offerings c ON c.id=cs.course_offering_id WHERE c.academic_year_id=? AND c.id IN ($visibleIds) AND cs.is_active=1 AND m.mark_status<>'ungraded' GROUP BY cs.course_offering_id,m.assessment_period_id"); $q->execute([$yearId]); foreach($q->fetchAll(PDO::FETCH_ASSOC) as $s) $stats[$s['course_offering_id']][$s['assessment_period_id']]['complete']=(int)$s['complete'];
 $q=$db->prepare("SELECT ms.* FROM mark_submissions ms JOIN course_offerings c ON c.id=ms.course_offering_id WHERE c.academic_year_id=? AND c.id IN ($visibleIds)"); $q->execute([$yearId]); foreach($q->fetchAll(PDO::FETCH_ASSOC) as $s) $stats[$s['course_offering_id']][$s['assessment_period_id']]['status']=$s['status']; ?>
+<?php if($view==='submissions') require __DIR__.'/marks_completion_summary.php'; ?>
 <section class="card"><p><?= $admin?'Μαθήματα και πορεία καταχώρισης για το ενεργό σχολικό έτος.':'Εμφανίζονται μόνο τα μαθήματα και τα τμήματα που σας έχουν ανατεθεί.' ?></p>
-<?php if($view==='overview'): ?><p class="marks-notice">Η εξαγωγή XLS θα προστεθεί μόλις συμφωνηθεί η μορφή του αρχείου. Μπορείτε ήδη να δείτε τη συγκεντρωτική καρτέλα κάθε διδασκαλίας παρακάτω.</p><?php endif; ?>
-<div class="marks-table-wrap"><table class="marks-table"><thead><tr><th>Τμήμα / μάθημα</th><th>Μαθητές</th><?php foreach($periods as $p): ?><th><?= $h($p['name']) ?></th><?php endforeach; ?><?php if($admin): ?><th>Διαχείριση</th><?php endif; ?></tr></thead><tbody>
-<?php foreach($courses as $c): ?><tr><td><strong><?= $h($c['section_name']) ?></strong><br><?= $h($c['subject_name']) ?><?= !$c['is_active']?'<br><span class="marks-pill">Ανενεργό</span>':'' ?></td><td><?= (int)$c['student_count'] ?></td><?php foreach($periods as $p): $s=$stats[$c['id']][$p['id']]??[]; ?><td><?php if($p['code']==='written'&&!$c['has_written_exam']): ?>Δεν εξετάζεται<?php else: ?><a class="marks-course-link" href="<?= $h($url(['view'=>'entry','course_id'=>$c['id'],'period_id'=>$p['id']])) ?>"><?= (int)($s['complete']??0) ?>/<?= (int)$c['student_count'] ?></a><br><span class="marks-pill <?= ($s['status']??'draft')==='submitted'?'submitted':'draft' ?>"><?= ($s['status']??'draft')==='submitted'?'Υποβλήθηκε':'Πρόχειρο' ?></span><?php endif; ?></td><?php endforeach; ?><?php if($admin): ?><td><a href="<?= $h($url(['view'=>'manage','course_id'=>$c['id']])) ?>">Αναθέσεις / μαθητές</a></td><?php endif; ?></tr><?php endforeach; ?>
-<?php if(!$courses): ?><tr><td colspan="6"><?= $admin?'Δεν υπάρχουν διδασκαλίες. Ξεκινήστε από την εισαγωγή αναθέσεων MySchool.':'Δεν έχουν καταχωριστεί αναθέσεις μαθημάτων στον λογαριασμό σας. Επικοινωνήστε με τον διαχειριστή.' ?></td></tr><?php endif; ?></tbody></table></div></section>
-<?php if($view==='overview'&&$admin&&$courses): $q=$db->prepare('SELECT cs.id,cs.course_offering_id,s.am,s.last_name,s.first_name,p.code,m.mark_value,m.mark_status FROM course_students cs JOIN course_offerings c ON c.id=cs.course_offering_id JOIN students s ON s.id=cs.student_id LEFT JOIN student_marks m ON m.course_student_id=cs.id LEFT JOIN assessment_periods p ON p.id=m.assessment_period_id WHERE c.academic_year_id=? AND cs.is_active=1 ORDER BY c.id,s.last_name,s.first_name,s.am'); $q->execute([$yearId]); $all=[]; foreach($q->fetchAll(PDO::FETCH_ASSOC) as $r) { $all[$r['course_offering_id']][$r['id']]['student']=$r; if($r['code']) $all[$r['course_offering_id']][$r['id']]['marks'][$r['code']]=$r; }
-foreach($courses as $c): ?><section class="card"><h2><?= $h($c['section_name'].' · '.$c['subject_name']) ?></h2><div class="marks-table-wrap"><table class="marks-table"><thead><tr><th>ΑΜ</th><th>Μαθητής</th><?php foreach($periods as $p): ?><th><?= $h($p['name']) ?></th><?php endforeach; ?></tr></thead><tbody><?php foreach($all[$c['id']]??[] as $item): ?><tr><td><?= $h($item['student']['am']) ?></td><td><?= $h($item['student']['last_name'].' '.$item['student']['first_name']) ?></td><?php foreach($periods as $p): $m=$item['marks'][$p['code']]??null; ?><td><?= $h($m&&$m['mark_status']==='value'?$displayGrade($m['mark_value']):($specialMarkLabels[$m['mark_status']??'']??'—')) ?></td><?php endforeach; ?></tr><?php endforeach; ?></tbody></table></div></section><?php endforeach; endif; ?>
+<div class="marks-table-wrap"><table class="marks-table"><thead><tr><th>Τμήμα / μάθημα</th><?php if($view==='submissions'): ?><th>Καθηγητής</th><?php endif; ?><th>Μαθητές</th><?php foreach($periods as $p): ?><th><?= $h($p['name']) ?></th><?php endforeach; ?><?php if($admin): ?><th>Διαχείριση</th><?php endif; ?></tr></thead><tbody>
+<?php foreach($courses as $c): ?><tr><td><strong><?= $h($c['section_name']) ?></strong><br><?= $h($c['subject_name']) ?><?= !$c['is_active']?'<br><span class="marks-pill">Ανενεργό</span>':'' ?></td><?php if($view==='submissions'): ?><td><?= $h(implode(', ',$overviewTeachers[$c['id']]??[]) ?: 'Χωρίς καθηγητή') ?></td><?php endif; ?><td><?= (int)$c['student_count'] ?></td><?php foreach($periods as $p): $s=$stats[$c['id']][$p['id']]??[]; ?><td><?php if($p['code']==='written'&&!$c['has_written_exam']): ?>Δεν εξετάζεται<?php else: ?><a class="marks-course-link" href="<?= $h($url(['view'=>'entry','course_id'=>$c['id'],'period_id'=>$p['id']])) ?>"><?= (int)($s['complete']??0) ?>/<?= (int)$c['student_count'] ?></a><br><span class="marks-pill <?= ($s['status']??'draft')==='submitted'?'submitted':'draft' ?>"><?= ($s['status']??'draft')==='submitted'?'Υποβλήθηκε':'Πρόχειρο' ?></span><?php if($view==='submissions'): $completion=marksCompletion($c,$p,$s); ?><br><small class="marks-help"><?= $completion['incomplete']?'Λείπουν '.$completion['missing'].' βαθμοί':($completion['draft']?'Πλήρης · εκκρεμεί υποβολή':'') ?></small><?php endif; ?><?php endif; ?></td><?php endforeach; ?><?php if($admin): ?><td><a href="<?= $h($url(['view'=>'manage','course_id'=>$c['id']])) ?>">Αναθέσεις / μαθητές</a></td><?php endif; ?></tr><?php endforeach; ?>
+<?php if(!$courses): ?><tr><td colspan="<?= 2+count($periods)+($admin?1:0)+($view==='submissions'?1:0) ?>"><?= $view==='submissions'?'Δεν βρέθηκαν διδασκαλίες για τα επιλεγμένα φίλτρα.':($admin?'Δεν υπάρχουν διδασκαλίες. Ξεκινήστε από την εισαγωγή αναθέσεων MySchool.':'Δεν έχουν καταχωριστεί αναθέσεις μαθημάτων στον λογαριασμό σας. Επικοινωνήστε με τον διαχειριστή.') ?></td></tr><?php endif; ?></tbody></table></div></section>
 <?php endif; ?>
 <footer class="marks-help" style="padding:20px 0">Absences · Απουσίες και βαθμολογία · <?= $h($year['name']) ?></footer></main></div></body></html>

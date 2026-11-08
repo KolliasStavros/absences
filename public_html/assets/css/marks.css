@@ -23,6 +23,18 @@
 }
 
 .marks-entry-fields { min-width: 0; }
+.marks-overview-scroll { max-height: 72vh; border: 1px solid var(--border); border-radius: 8px; }
+.marks-overview-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+.marks-overview-table th,.marks-overview-table td { padding: 7px 10px; text-align: center; min-width: 66px; white-space: nowrap; }
+.marks-overview-table thead { position: sticky; top: 0; z-index: 3; background: var(--bg-card,#fff); }
+.marks-overview-table .marks-student-column { position: sticky; left: 0; z-index: 2; background: var(--bg-card,#fff); text-align: left; min-width: 200px; max-width: 280px; white-space: normal; border-right: 2px solid var(--border); }
+.marks-overview-table thead .marks-student-column { z-index: 4; }
+.marks-overview-table .marks-subject-group { min-width: 160px; max-width: 280px; white-space: normal; border-left: 2px solid var(--border); color: var(--text-main); }
+.marks-overview-table small { display: block; font-size: 11px; font-weight: normal; color: var(--text-muted); margin-top: 3px; }
+.marks-overview-table .marks-subject-start { border-left: 2px solid var(--border); }
+.marks-overview-table tbody tr:hover td { background: var(--bg-main,#f1f5f9); }
+.marks-overview-table td { font-variant-numeric: tabular-nums; }
+@media(max-width:800px) { .marks-overview-table .marks-student-column { min-width: 145px; max-width: 180px; } }
 .marks-entry-fields legend { max-width: 100%; }
 .marks-entry-fields .marks-table td { padding-block: 8px; }
 .marks-entry-fields .form-control { padding: 6px 8px; }

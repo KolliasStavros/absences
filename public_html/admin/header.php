@@ -55,7 +55,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
         .badge-gray { background: #f1f5f9; color: #475569; }
     </style>
     <?php if ($currentPage === 'marks.php'): ?>
-    <link rel="stylesheet" href="../assets/css/marks.css?v=4">
+    <link rel="stylesheet" href="../assets/css/marks.css?v=5">
     <?php endif; ?>
 </head>
 <body class="admin-layout<?= $currentPage === 'index.php' ? ' attendance-page' : ($currentPage === 'student_cards.php' ? ' absence-cards-page' : ($currentPage === 'students.php' ? ' students-page' : ($currentPage === 'sections.php' ? ' sections-page' : ($currentPage === 'teachers.php' ? ' teachers-page' : ($currentPage === 'import.php' ? ' import-page' : ($currentPage === 'settings.php' ? ' settings-page' : '')))))) ?>">

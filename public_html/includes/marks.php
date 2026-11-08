@@ -80,7 +80,7 @@ function marksPeriod(PDO $db,int $year,int $id,bool $lock=false): array {
 function marksCourses(PDO $db,int $year,array $user): array {
     $where=''; $params=[$year];
     if(($user['role']??'')!=='admin') { $where=' AND c.is_active=1 AND EXISTS(SELECT 1 FROM course_teachers ct WHERE ct.course_offering_id=c.id AND ct.teacher_id=? AND ct.is_active=1 AND ct.can_edit_marks=1)'; $params[]=$user['id']; }
-    $q=$db->prepare('SELECT c.*,s.name AS section_name,sub.display_name AS subject_name,(SELECT COUNT(*) FROM course_students cs WHERE cs.course_offering_id=c.id AND cs.is_active=1) AS student_count FROM course_offerings c JOIN sections s ON s.id=c.section_id JOIN subjects sub ON sub.id=c.subject_id WHERE c.academic_year_id=?'.$where.' ORDER BY s.name,sub.display_name,c.id');
+    $q=$db->prepare('SELECT c.*,s.grade_id,g.name AS grade_name,s.name AS section_name,sub.display_name AS subject_name,(SELECT COUNT(*) FROM course_students cs WHERE cs.course_offering_id=c.id AND cs.is_active=1) AS student_count FROM course_offerings c JOIN sections s ON s.id=c.section_id LEFT JOIN grades g ON g.id=s.grade_id JOIN subjects sub ON sub.id=c.subject_id WHERE c.academic_year_id=?'.$where.' ORDER BY s.name,sub.display_name,c.id');
     $q->execute($params); return $q->fetchAll(PDO::FETCH_ASSOC);
 }
 

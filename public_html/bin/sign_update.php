@@ -11,6 +11,12 @@ foreach([$app,dirname($app),$source] as $public){
 }
 $secret=base64_decode(trim(file_get_contents($secretFile)),true);if($secret===false || strlen($secret)!==64)throw new RuntimeException('Μη έγκυρο κλειδί υπογραφής.');
 $manifest=json_decode(file_get_contents($manifestFile),true,64,JSON_THROW_ON_ERROR);$manifest['application']='absences';$manifest['format']=1;$entries=[];
+if(array_key_exists('new_tables',$manifest)) {
+    $tables=$manifest['new_tables'];
+    if(!is_array($tables) || !array_is_list($tables) || count($tables)>512)throw new RuntimeException('Μη έγκυρη λίστα νέων πινάκων.');
+    foreach($tables as $table)if(!is_string($table) || !preg_match('/^[a-z][a-z0-9_]{0,63}$/D',$table))throw new RuntimeException('Μη έγκυρο όνομα νέου πίνακα.');
+    if(count($tables)!==count(array_unique($tables)))throw new RuntimeException('Διπλό όνομα νέου πίνακα.');
+}
 foreach(['files'=>'files/','migrations'=>'sql/'] as $kind=>$zipPrefix){
     $paths=$manifest[$kind]??[];if(!is_array($paths))throw new RuntimeException('Μη έγκυρη λίστα αρχείων.');
     $paths=array_is_list($paths)?$paths:array_keys($paths);$manifest[$kind]=[];

@@ -34,12 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_justify_range'
     } else {
         try {
             $studentId = schoolRequestId($_POST['student_id'] ?? null);
-            $date = schoolRequestDate($_POST['date_from'] ?? null);
+            require_once __DIR__.'/justification_dates.php';
+            $dates = justificationDates($_POST);
             $action = $_POST['reason_action'] ?? 'justify';
             $code = $_POST['reason'] ?? '';
             $unjustified = $_POST['unjustified_reason'] ?? '';
             $protocol = $_POST['protocol'] ?? '';
-            if ($date===null || $studentId===null || !in_array($action,['justify','save_unjustified'],true)) throw new DomainException('Ελέγξτε μαθητή, ημερομηνία και ενέργεια.');
+            if ($studentId===null || !in_array($action,['justify','save_unjustified'],true)) throw new DomainException('Ελέγξτε μαθητή, ημερομηνία και ενέργεια.');
             if (!is_string($unjustified) || ($unjustified !== '' && !array_key_exists($unjustified,unjustifiedReasons()))) throw new DomainException('Μη έγκυρη αιτία αδικαιολόγητης απουσίας.');
             if ($action === 'justify' && (!is_string($code) || !array_key_exists($code,justificationReasons()))) throw new DomainException('Επιλέξτε έγκυρο λόγο δικαιολόγησης.');
             if (!is_string($protocol) || mb_strlen($protocol)>255) throw new DomainException('Οι σημειώσεις επιτρέπονται έως 255 χαρακτήρες.');
@@ -47,27 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_justify_range'
             $actor = beginAttendanceMutation($db,$activeYearId,['admin']);
             $q=$db->prepare('SELECT id FROM students WHERE id=? AND academic_year_id=? FOR UPDATE');$q->execute([$studentId,$activeYearId]);
             if (!$q->fetchColumn()) throw new DomainException('Ο μαθητής δεν ανήκει στο ενεργό σχολικό έτος.');
-            $q=$db->prepare("SELECT absence_type,COUNT(*) AS n FROM attendance WHERE student_id=? AND academic_year_id=? AND date=? AND is_absent=1 GROUP BY absence_type");
-            $q->execute([$studentId,$activeYearId,$date]);$counts=[];
-            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $counts[$row['absence_type'] ?? 'absent']=(int)$row['n'];
-            if (!$counts) throw new DomainException('Δεν υπάρχουν απουσίες για την επιλεγμένη ημέρα.');
-            if ($action === 'save_unjustified') {
-                if (($counts['absent']??0)+($counts['leave']??0)+($counts['expulsion']??0)===0 && $unjustified !== '') throw new DomainException('Η ημέρα δεν περιέχει αδικαιολόγητες απουσίες ή αποβολές.');
-                $q=$db->prepare('INSERT INTO absence_day_reasons(academic_year_id,student_id,date,unjustified_reason) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE unjustified_reason=VALUES(unjustified_reason),updated_at=NOW()');
-                $q->execute([$activeYearId,$studentId,$date,$unjustified===''?null:unjustifiedReasons()[$unjustified]]);
-                $message = 'Η αιτία αδικαιολόγητης απουσίας αποθηκεύτηκε. Οι καταστάσεις των απουσιών δεν άλλαξαν.';
-            } else {
-                if (($counts['absent']??0)+($counts['leave']??0)+($counts['justified']??0)===0) throw new DomainException('Υπάρχουν μόνο αποβολές· δεν επιτρέπεται να μετατραπούν σε δικαιολογημένες απουσίες.');
-                $q=$db->prepare("UPDATE attendance SET absence_type='justified',updated_at=NOW() WHERE student_id=? AND academic_year_id=? AND date=? AND is_absent=1 AND (absence_type IN ('absent','leave') OR absence_type IS NULL)");
-                $q->execute([$studentId,$activeYearId,$date]);$affected=$q->rowCount();
-                $q=$db->prepare('INSERT INTO absence_day_reasons(academic_year_id,student_id,date,justification_reason,protocol,justified_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE justification_reason=VALUES(justification_reason),protocol=VALUES(protocol),justified_by=VALUES(justified_by),updated_at=NOW()');
-                $q->execute([$activeYearId,$studentId,$date,justificationReasons()[$code],trim($protocol),$actor['id']]);
-                $message = "Δικαιολογήθηκαν {$affected} ώρες. Ο λόγος δικαιολόγησης και οι σημειώσεις αποθηκεύτηκαν για την επιλεγμένη ημέρα.";
-                if (($counts['expulsion']??0)>0) $message .= ' Οι αποβολές διατηρήθηκαν αμετάβλητες.';
-            }
+            require_once __DIR__.'/justification_mutation.php';
+            $message=applyJustificationDates($db,$activeYearId,$studentId,$dates,$action,$action==='justify'?$code:'',$unjustified,$protocol,$actor);
             $db->commit();
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
+            $message = '';
             $error = $e instanceof DomainException ? $e->getMessage() : 'Σφάλμα αποθήκευσης αιτιολογίας: '.safeError($e);
         }
     }

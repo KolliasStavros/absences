@@ -8,7 +8,7 @@ require __DIR__.'/../includes/student_cards_controller.php';
 ?>
 
 <link rel="stylesheet" href="../assets/css/ui-components.css?v=20261029-1">
-<link rel="stylesheet" href="../assets/css/student-cards.css?v=20261029-2">
+<link rel="stylesheet" href="../assets/css/student-cards.css?v=20261108-2">
 <div class="card absence-report-heading">
     <div class="absence-report-titlebar">
         <div>
@@ -139,12 +139,17 @@ require __DIR__.'/../includes/student_cards_controller.php';
     </div>
 </div>
 
+<div class="card summary-email-toolbar no-print">
+    <button type="button" id="summary-email-open" class="btn btn-bulk-email-custom" disabled>✉️ Αποστολή Email στους Επιλεγμένους <span id="summary-selection-count" class="summary-selection-badge" aria-live="polite">0</span></button>
+    <span id="summary-selection-status" role="status"></span>
+</div>
 <!-- Students Absence Cards Table -->
 <div class="card" style="padding:0; overflow:hidden;">
     <div style="overflow-x:auto;">
-        <table class="table-custom absence-cards-table" style="width:100%; border-collapse:collapse;">
+        <table class="table-custom absence-cards-table summary-enabled-table" style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr>
+                    <th class="no-print cards-select-cell"><input type="checkbox" id="summary-select-all" aria-label="Επιλογή όλων των μαθητών της προβολής"></th>
                     <th style="width:75px; text-align:center; padding-left:20px;">Α.Μ.</th>
                     <th>Μαθητής/τρια</th>
                     <th style="width:100px;">Τμήμα</th>
@@ -158,7 +163,7 @@ require __DIR__.'/../includes/student_cards_controller.php';
             <tbody>
                 <?php if (empty($studentsList)): ?>
                     <tr>
-                        <td colspan="8" style="text-align:center; padding:40px; color:var(--text-muted);">
+                        <td colspan="9" style="text-align:center; padding:40px; color:var(--text-muted);">
                             <div style="font-size:32px; margin-bottom:8px;">🔍</div>
                             Δεν βρέθηκαν μαθητές με τα επιλεγμένα κριτήρια.
                         </td>
@@ -183,10 +188,12 @@ require __DIR__.'/../includes/student_cards_controller.php';
                             }
                         ?>
                         <tr class="absence-student-row">
+                            <td class="no-print cards-select-cell"><input type="checkbox" class="summary-student-choice" value="<?= (int)$s['id'] ?>" aria-label="<?= htmlspecialchars('Επιλογή '.$s['last_name'].' '.$s['first_name'],ENT_QUOTES,'UTF-8') ?>"></td>
                             <td style="text-align:center; font-weight:700; color:var(--text-muted); font-size:12px; padding-left:20px;">
                                 <?= htmlspecialchars($s['am']) ?>
                             </td>
                             <td>
+                                
                                 <div class="absence-student-name">
                                     <?= htmlspecialchars($s['last_name'] . ' ' . $s['first_name']) ?>
                                     <span class="absence-student-am">Α.Μ. <?= htmlspecialchars($s['am']) ?></span>
@@ -277,7 +284,7 @@ require __DIR__.'/../includes/student_cards_controller.php';
             <input type="hidden" name="student_id" id="justifyStudentId" value="">
 
             <div class="form-group">
-                <label for="justifyDateFrom">Ημερομηνία απουσιών</label>
+                <label for="justifyDateFrom">Ημερομηνίες απουσιών</label>
                 <input type="date" name="date_from" id="justifyDateFrom" class="form-control" required value="<?= date('Y-m-d') ?>">
             </div>
 
@@ -343,9 +350,11 @@ require __DIR__.'/../includes/student_cards_controller.php';
 <?= csrfField() ?>
 <link rel="stylesheet" href="../assets/css/email-composer.css?v=20261031-1">
 <script src="../assets/js/email-composer.js?v=20261031-1" defer></script>
+<link rel="stylesheet" href="../assets/css/bulk-notification-preview.css?v=20261029-2">
+<script src="../assets/js/summary-email.js?v=2" defer></script>
 <script src="../assets/js/history-email.js?v=20261031-1" defer></script>
-<script src="../assets/js/student-cards.js?v=20261028-1"></script>
+<script src="../assets/js/student-cards.js?v=multi-day-1"></script>
 
-<script src="../assets/js/absence-calendar.js?v=single-day-1" defer></script>
+<script src="../assets/js/absence-calendar.js?v=multi-day-2" defer></script>
 <?php require_once __DIR__ . '/footer.php'; ?>
 

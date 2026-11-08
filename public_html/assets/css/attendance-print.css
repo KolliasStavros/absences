@@ -1,0 +1,24 @@
+/* Dedicated paper layout; screen controls and responsive tables are never printed. */
+#attendance-print-report { display: none; }
+@media print {
+    @page { size: A4 portrait; margin: 12mm; }
+    html, body.attendance-page { display: block !important; position: static !important; width: auto !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: white !important; color: black !important; }
+    body.attendance-page > :not(#attendance-print-report) { display: none !important; }
+    body.attendance-page > #attendance-print-report { display: block !important; font: 9pt/1.35 Arial, sans-serif; color: black; }
+    #attendance-print-report * { box-sizing: border-box; color: black !important; text-shadow: none !important; box-shadow: none !important; }
+    #attendance-print-report header { text-align: center; border-bottom: 1.5pt solid black; padding-bottom: 3mm; margin-bottom: 3mm; }
+    #attendance-print-report h1 { font-size: 15pt; margin: 0 0 2mm; }
+    #attendance-print-report h2 { font-size: 12pt; margin: 0 0 2mm; }
+    #attendance-print-report p { margin: 1.5mm 0; }
+    #attendance-print-report table { table-layout: fixed; width: 100% !important; border-collapse: collapse !important; font-size: 8.5pt; }
+    #attendance-print-report th, #attendance-print-report td { border: .5pt solid #444 !important; padding: 2mm 1mm !important; text-align: center; overflow-wrap: anywhere; white-space: normal !important; }
+    #attendance-print-report tbody th { text-align: left; font-weight: normal; }
+    #attendance-print-report thead { display: table-header-group; }
+    #attendance-print-report thead th { background: #eee !important; font-weight: bold; }
+    #attendance-print-report tr { break-inside: avoid; page-break-inside: avoid; }
+    #attendance-print-report .print-report-summary { margin: 3mm 0; }
+    #attendance-print-report .print-report-legend { font-size: 8pt; margin-top: 3mm; break-inside: avoid; }
+    #attendance-print-report .print-report-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; margin-top: 8mm; break-inside: avoid; page-break-inside: avoid; }
+    #attendance-print-report .print-report-footer > div { text-align: center; min-width: 50mm; }
+    #attendance-print-report .print-report-signature { border-top: .5pt solid black; padding-top: 1mm; margin-top: 15mm; font-size: 8pt; }
+}

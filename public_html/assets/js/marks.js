@@ -7,9 +7,58 @@
         const sidebar = document.getElementById('marks-navigation');
         toggle.setAttribute('aria-expanded', String(sidebar.classList.toggle('is-open')));
     });
+    let dirty = false, saving = false;
+    const allowFilterChange = () => {
+        if (dirty && !window.confirm('Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;')) return false;
+        dirty = false;
+        return true;
+    };
+    const grade = document.querySelector('[data-marks-grade]');
+    const section = document.querySelector('[data-marks-section]');
+    const course = document.querySelector('[data-marks-course]');
+    if (grade && section && course) {
+        const sections = [...section.options].slice(1);
+        const courses = [...course.options].slice(1);
+        const fill = (select, options, enabled, value = '') => {
+            select.replaceChildren(select.options[0], ...options);
+            select.value = value;
+            select.disabled = !enabled;
+        };
+        const refreshCourses = (value = '') => fill(course, courses.filter(option => option.dataset.section === section.value), !!section.value, value);
+        const refreshSections = (value = '') => fill(section, sections.filter(option => option.dataset.grade === grade.value), !!grade.value, value);
+        refreshSections(section.value);
+        refreshCourses(course.value);
+        [grade, section, course].forEach(select => { select.dataset.previous = select.value; });
+        [grade, section].forEach(select => select.addEventListener('change', () => {
+            if (!allowFilterChange()) { select.value = select.dataset.previous; return; }
+            if (select === grade) refreshSections();
+            refreshCourses();
+            [grade, section, course].forEach(field => { field.dataset.previous = field.value; });
+        }));
+    }
+    const overview = document.querySelector('[data-marks-overview]');
+    if (overview) {
+        const catalog = JSON.parse(document.getElementById('marks-overview-catalog').textContent);
+        const fields = Object.fromEntries(['grade_id', 'section_id', 'subject_id', 'teacher_id'].map(key => [key, overview.elements.namedItem(key)]));
+        const options = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, [...field.options]]));
+        const restrict = (key, allowed) => {
+            const field = fields[key], value = field.value;
+            field.replaceChildren(...options[key].filter(option => !option.value || allowed.has(option.value)));
+            field.value = allowed.has(value) ? value : '';
+        };
+        const refresh = () => {
+            let scope = catalog.filter(item => !fields.grade_id.value || item.grade_id === fields.grade_id.value);
+            restrict('section_id', new Set(scope.map(item => item.section_id)));
+            scope = scope.filter(item => !fields.section_id.value || item.section_id === fields.section_id.value);
+            restrict('subject_id', new Set(scope.map(item => item.subject_id)));
+            restrict('teacher_id', new Set(scope.flatMap(item => item.teachers)));
+        };
+        fields.grade_id.addEventListener('change', refresh);
+        fields.section_id.addEventListener('change', refresh);
+        // Keep submitted combinations intact on load, including empty results.
+    }
     const form = document.getElementById('marks-entry');
     if (!form) return;
-    let dirty = false, saving = false;
     const rows = [...form.querySelectorAll('[data-mark-row]')].filter(row => row.dataset.active === '1');
     const output = document.getElementById('marks-message');
     const buttons = [...form.querySelectorAll('[data-save-action]')];

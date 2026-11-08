@@ -5,6 +5,80 @@ require_once __DIR__.'/lifecycle_restore.php';
 final class AbsencesLifecycle {
     use AbsencesRestore;
     private const TABLES=['academic_years','absence_day_reasons','attendance_notes','attendance','grades','login_attempts','notification_logs','password_resets','reset_requests','student_sections','teacher_sections','sections','settings','smtp_accounts','students','users','subjects','course_offerings','course_teachers','assessment_periods','course_students','student_marks','mark_submissions','mark_audit_log','mark_teacher_aliases'];
+    public static function privilegesFromGrants(array $grants, string $database): array {
+        $supported=['SELECT','INSERT','UPDATE','DELETE','CREATE','ALTER','DROP','REFERENCES','INDEX','CREATE TEMPORARY TABLES','LOCK TABLES','CREATE VIEW','SHOW VIEW','CREATE ROUTINE','ALTER ROUTINE','EXECUTE','EVENT','TRIGGER'];
+        $allowed=[];$denied=[];
+        foreach($grants as $grant) {
+            if(!is_string($grant) || !preg_match('/^(GRANT|REVOKE)\s+(.+?)\s+ON\s+(.+?)\s+(?:TO|FROM)\s/i',$grant,$match))continue;
+            $scope=trim($match[3]);$matches=$scope==='*.*';
+            if(!$matches && preg_match('/^(?:`((?:``|[^`])+)`|([A-Za-z0-9_\\\\%$-]+))\.\*$/D',$scope,$schema)) {
+                $name=str_replace('``','`',$schema[1]!==''?$schema[1]:($schema[2]??''));
+                // SHOW GRANTS escapes literal underscores/percent signs in schema names.
+                // Do not interpret wildcard grants broadly or accept another database/table.
+                $name=preg_replace('/\\\\([_%\\\\])/','$1',$name);
+                $matches=$name===$database;
+            }
+            if(!$matches)continue;
+            $privileges=array_map(static fn($value)=>strtoupper(trim($value)),explode(',',$match[2]));
+            $privileges=in_array('ALL PRIVILEGES',$privileges,true)||in_array('ALL',$privileges,true)?$supported:array_values(array_intersect($supported,$privileges));
+            if(strtoupper($match[1])==='REVOKE')$denied=array_merge($denied,$privileges);
+            else $allowed=array_merge($allowed,$privileges);
+        }
+        $result=array_values(array_diff(array_unique($allowed),$denied));sort($result);return $result;
+    }
+    private function databasePrivileges(): array {
+        return self::privilegesFromGrants($this->db->query('SHOW GRANTS')->fetchAll(PDO::FETCH_COLUMN),$this->database);
+    }
+    public function databaseDiagnostics(): array {
+        $privileges=$this->databasePrivileges();$result=[];
+        foreach(['SELECT','INSERT','UPDATE','CREATE','ALTER','REFERENCES','DROP'] as $name)$result[$name]=in_array($name,$privileges,true);
+        return ['database_matches'=>$this->db->query('SELECT DATABASE()')->fetchColumn()===$this->database,'privileges'=>$result];
+    }
+    private function tableNames(mixed $names): array {
+        if(!is_array($names) || !array_is_list($names) || count($names)>512)throw new DomainException('Μη έγκυρη λίστα πινάκων ενημέρωσης.');
+        foreach($names as $name) {
+            if(!is_string($name) || !preg_match('/^[a-z][a-z0-9_]*$/D',$name) || strlen($this->prefix.$name)>64)throw new DomainException('Μη έγκυρο όνομα πίνακα ενημέρωσης.');
+        }
+        if(count($names)!==count(array_unique($names)))throw new DomainException('Διπλό όνομα πίνακα ενημέρωσης.');
+        return $names;
+    }
+    private function managedTables(): array {
+        $registry=$this->read('schema-ownership.json');
+        if($registry===null)return self::TABLES;
+        if(($registry['format']??null)!==1)throw new DomainException('Μη έγκυρο ιδιωτικό μητρώο πινάκων.');
+        return array_values(array_unique(array_merge(self::TABLES,$this->tableNames($registry['tables']??null))));
+    }
+    private function migrationStatement(string $sql): array {
+        $sql=str_replace('{{prefix}}',$this->prefix,$sql);
+        $start=preg_replace('~\A(?:\s+|/\*.*?\*/|--[^\r\n]*(?:\r?\n|$)|\#[^\r\n]*(?:\r?\n|$))*~s','',$sql);
+        if(!preg_match('/^(ALTER\s+TABLE|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+`?([A-Za-z0-9_]+)`?\s/i',$start,$match))throw new DomainException('Η μεταβολή βάσης δεν έχει υποστηριζόμενη μορφή. Απαιτείται χειροκίνητος έλεγχος.');
+        return [$start,strtoupper(preg_replace('/\s+/',' ',$match[1])),$match[2]];
+    }
+    private function declaredTables(array $manifest, ZipArchive $zip): array {
+        $declared=$this->tableNames($manifest['new_tables']??[]);
+        if(!$declared)return [];
+        $creates=[];
+        foreach(array_keys($manifest['migrations']) as $path) {
+            [, $operation,$table]=$this->migrationStatement($zip->getFromName('sql/'.$path));
+            if(str_starts_with($operation,'CREATE TABLE'))$creates[]=$table;
+        }
+        foreach($declared as $table) {
+            if(!in_array($this->prefix.$table,$creates,true))throw new DomainException('Δηλώθηκε νέος πίνακας χωρίς αντίστοιχη εντολή CREATE TABLE.');
+        }
+        $this->tableNames(array_values(array_diff(array_unique(array_merge($this->managedTables(),$declared)),self::TABLES)));
+        foreach(array_diff($declared,$this->managedTables()) as $table) {
+            $query=$this->db->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=? AND TABLE_NAME=?');
+            $query->execute([$this->database,$this->prefix.$table]);
+            if((int)$query->fetchColumn()>0)throw new DomainException('Υπάρχει ήδη μη καταγεγραμμένος πίνακας με το όνομα '.$this->prefix.$table.'. Δεν επιτρέπεται αυτόματη ανάληψη ιδιοκτησίας.');
+        }
+        return $declared;
+    }
+    private function registerTables(array $names): void {
+        $additional=array_values(array_diff(array_unique(array_merge($this->managedTables(),$names)),self::TABLES));
+        if(!$additional)return;
+        $this->tableNames($additional);sort($additional);
+        $this->write('schema-ownership.json',['format'=>1,'tables'=>$additional]);
+    }
     public function __construct(public readonly string $root, public readonly string $store, private readonly PDO $db, private readonly string $database, private readonly string $prefix) {
         if (!preg_match('/^[a-zA-Z0-9_]{0,40}$/D',$prefix) || !preg_match('/^[a-zA-Z0-9_]+$/D',$database)) throw new DomainException('Μη έγκυρα στοιχεία εγκατάστασης.');
         if (!is_dir($store) || !is_writable($store)) throw new DomainException('Δεν είναι διαθέσιμος ο ιδιωτικός φάκελος συντήρησης.');
@@ -41,7 +115,7 @@ final class AbsencesLifecycle {
     public function inventory(bool $allowPartial=false): array {
         $q=$this->db->prepare('SELECT TABLE_NAME,TABLE_TYPE,ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=?');$q->execute([$this->database]);
         $all=$q->fetchAll(PDO::FETCH_ASSOC);$managed=[];$unknown=[];
-        $expected=array_map(fn($t)=>$this->prefix.$t,self::TABLES);
+        $expected=array_map(fn($t)=>$this->prefix.$t,$this->managedTables());
         foreach ($all as $row) {
             $name=$row['TABLE_NAME'];
             if (in_array($name,$expected,true)) {
@@ -61,13 +135,7 @@ final class AbsencesLifecycle {
         sort($managed);return $managed;
     }
     public function canDrop(): bool {
-        foreach ($this->db->query('SHOW GRANTS')->fetchAll(PDO::FETCH_COLUMN) as $grant) {
-            if (preg_match('/^GRANT (.+) ON (.+) TO /i',$grant,$m)) {
-                $scope=str_replace('`','',$m[2]);
-                if (in_array($scope,['*.*',$this->database.'.*'],true) && preg_match('/\b(ALL PRIVILEGES|DROP)\b/',$m[1])) return true;
-            }
-        }
-        return false;
+        return in_array('DROP',$this->databasePrivileges(),true);
     }
     private function dropOrder(array $tables): array {
         $q=$this->db->prepare('SELECT TABLE_NAME,REFERENCED_TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=? AND REFERENCED_TABLE_SCHEMA=?');
@@ -122,21 +190,15 @@ final class AbsencesLifecycle {
         if (preg_match('~^(config|release|scratch|tests|\.git|\.codex|\.agents|\.aws)(/|$)~i',$path) || in_array(strtolower($path),['.htaccess','install.php','includes/lifecycle.php','includes/lifecycle_guard.php','includes/lifecycle_restore.php','admin/maintenance.php','bin/restore_backup.php'],true)) throw new DomainException('Το πακέτο επιχειρεί να αλλάξει προστατευμένα αρχεία εγκατάστασης ή συντήρησης.');
         return $target;
     }
-    private function migrationPreflight(string $sql): void {
-        $sql=str_replace('{{prefix}}',$this->prefix,$sql);
-        $start=preg_replace('~\A(?:\s+|/\*.*?\*/|--[^\r\n]*(?:\r?\n|$)|\#[^\r\n]*(?:\r?\n|$))*~s','',$sql);
-        if(!preg_match('/^(ALTER\s+TABLE|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+`?([A-Za-z0-9_]+)`?\s/i',$start,$m))throw new DomainException('Η μεταβολή βάσης δεν έχει υποστηριζόμενη μορφή. Απαιτείται χειροκίνητος έλεγχος.');
-        if(!in_array($m[2],array_map(fn($t)=>$this->prefix.$t,self::TABLES),true))throw new DomainException('Η μεταβολή βάσης αφορά μη καταγεγραμμένο πίνακα. Απαιτείται έλεγχος ιδιοκτησίας.');
+    private function migrationPreflight(string $sql, array $declared=[]): void {
+        [$start,$operation,$table]=$this->migrationStatement($sql);
+        $known=array_unique(array_merge($this->managedTables(),$declared));
+        if(!in_array($table,array_map(fn($t)=>$this->prefix.$t,$known),true))throw new DomainException('Η μεταβολή βάσης αφορά μη καταγεγραμμένο πίνακα. Απαιτείται έλεγχος ιδιοκτησίας.');
         $clean=preg_replace("~'(?:''|\\\\.|[^'\\\\])*'|\"(?:\"\"|\\\\.|[^\"\\\\])*\"|/\\*.*?\\*/|--[^\\r\\n]*|\\#[^\\r\\n]*~s",'',$start);
         if(str_contains(rtrim($clean,"; \t\r\n"),';'))throw new DomainException('Κάθε αρχείο μεταβολής πρέπει να περιέχει μία μόνο εντολή SQL.');
-        $needed=strtoupper(strtok($m[1],' '));
-        foreach($this->db->query('SHOW GRANTS')->fetchAll(PDO::FETCH_COLUMN) as $grant){
-            if(preg_match('/^GRANT (.+) ON (.+) TO /i',$grant,$g) && in_array(str_replace('`','',$g[2]),['*.*',$this->database.'.*'],true)) {
-                $privileges=array_map('trim',explode(',',$g[1]));
-                if(in_array('ALL PRIVILEGES',$privileges,true) || in_array($needed,$privileges,true))return;
-            }
-        }
-        throw new DomainException('Λείπει δικαίωμα βάσης για τη μεταβολή '.$needed.'. Ρυθμίστε τον ιδιωτικό λογαριασμό συντήρησης πριν από την ενημέρωση.');
+        $needed=strtok($operation,' ');
+        if(in_array($needed,$this->databasePrivileges(),true))return;
+        throw new DomainException('Δεν επιβεβαιώθηκε δικαίωμα βάσης για τη μεταβολή '.$needed.'. Δείτε τον Διαγνωστικό έλεγχο βάσης στη σελίδα συντήρησης.');
     }
     public function verifyPackage(string $file, string $version): array {
         if (!extension_loaded('sodium') || !class_exists('ZipArchive')) throw new DomainException('Απαιτούνται οι επεκτάσεις sodium και zip.');
@@ -176,7 +238,8 @@ final class AbsencesLifecycle {
                     $data=$zip->getFromIndex($i);if($data===false || !hash_equals($allowed[$name],hash('sha256',$data)))throw new DomainException('Αλλοιωμένο αρχείο πακέτου.');
                 }
             }
-            foreach(array_keys($m['migrations']??[]) as $path)$this->migrationPreflight($zip->getFromName('sql/'.$path));
+            $declared=$this->declaredTables($m,$zip);
+            foreach(array_keys($m['migrations']??[]) as $path)$this->migrationPreflight($zip->getFromName('sql/'.$path),$declared);
             return $m;
         } finally { $zip->close(); }
     }
@@ -298,6 +361,9 @@ final class AbsencesLifecycle {
             $meta=$this->backup($this->inventory(),$version);$this->audit('update','backup_verified',$actor);
             $zip=new ZipArchive();if($zip->open($package)!==true)throw new RuntimeException('Το πακέτο δεν είναι διαθέσιμο.');
             try{
+                // Persist ownership only after confirmation and a verified backup, before any DDL.
+                // Keep it on DDL failure so recovery can still recognize partially created tables.
+                $this->registerTables($m['new_tables']??[]);
                 foreach(($m['migrations']??[]) as $path=>$hash){$databaseStarted=true;$sql=$zip->getFromName('sql/'.$path);$this->db->exec(str_replace('{{prefix}}',$this->prefix,$sql));}
                 foreach(($m['files']??[]) as $path=>$hash){$file=$this->updatePath($path);$touched[$path]=is_file($file);$this->atomicFile($file,$zip->getFromName('files/'.$path));if(!hash_equals($hash,hash_file('sha256',$file)))throw new RuntimeException('Αποτυχία επαλήθευσης νέου αρχείου.');}
                 foreach(($m['delete']??[]) as $path){$file=$this->updatePath($path);if(is_file($file)){$touched[$path]=true;if(!unlink($file))throw new RuntimeException('Δεν αφαιρέθηκε παλιό αρχείο.');}}

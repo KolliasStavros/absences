@@ -972,15 +972,18 @@ foreach ($studentRows as $sr) {
 <link rel="stylesheet" href="../assets/css/dashboard-responsive.css?v=20261104-2">
 <link rel="stylesheet" href="../assets/css/ui-components.css?v=20261029-2">
 <link rel="stylesheet" href="../assets/css/bulk-notification-preview.css?v=20261029-2">
-<script src="../assets/js/bulk-notification-preview.js?v=20261029-3" defer></script>
-<div class="print-only" style="margin-bottom:20px; border-bottom:2px solid #333; padding-bottom:12px; text-align:center;">
-    <h2 style="margin:0; font-size:16pt;"><?= htmlspecialchars($schoolName) ?></h2>
-    <h3 style="margin:4px 0; font-size:13pt;">ΗΜΕΡΗΣΙΟ ΔΕΛΤΙΟ ΑΠΟΥΣΙΩΝ</h3>
-    <div style="font-size:11pt; margin-top:4px;">
-        Ημερομηνία: <strong><?= date('d/m/Y', strtotime($selectedDate)) ?></strong> &bull; 
-        Σχολικό Έτος: <strong><?= htmlspecialchars($activeAcademicYear['name'] ?? '2026-2027') ?></strong>
-    </div>
-</div>
+<script src="../assets/js/bulk-notification-preview.js?v=20261105-1" defer></script>
+<?php
+$printGrade='Όλες οι τάξεις'; $printSection='Όλα τα τμήματα';
+foreach($allGrades as $g) if((int)$g['id']===$filterGradeId) $printGrade='Τάξη '.$g['name'];
+foreach($allSections as $sec) if((int)$sec['id']===$filterSectionId) $printSection='Τμήμα '.$sec['name'];
+$printStatuses=['all'=>'Όλοι οι μαθητές','absent_only'=>'Μαθητές με απουσίες','present_only'=>'Χωρίς καταχωρισμένες απουσίες','expulsion_only'=>'Μαθητές με ωριαία αποβολή','justified_only'=>'Μαθητές με δικαιολογημένη απουσία','leave_only'=>'Μαθητές με άδεια'];
+?>
+<link rel="stylesheet" href="../assets/css/attendance-print.css?v=1">
+<link rel="stylesheet" href="../assets/css/attendance-calendar.css?v=1">
+<script src="../assets/js/attendance-calendar.js?v=1" defer></script>
+<script type="application/json" id="attendance-print-config"><?= json_encode(['school'=>$schoolName,'date'=>date('d/m/Y',strtotime($selectedDate)),'year'=>$activeAcademicYear['name']??'','filters'=>$printGrade.' · '.$printSection.' · '.$printStatuses[$statusFilter]],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
+<script src="../assets/js/attendance-print.js?v=1" defer></script>
 <div class="content-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
     <div>
         <h1 style="font-size:22px; font-weight:700; margin:0 0 4px 0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -1324,7 +1327,7 @@ foreach ($studentRows as $sr) {
                                         <span style="color:var(--text-muted); font-size:12px;">—</span>
                                     <?php endif; ?>
                                 </td>
-                                <td id="action-cell-<?= $studentId ?>" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(<?= (int)$studentId ?>,'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
+                                <td id="action-cell-<?= $studentId ?>" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentAbsenceCalendar(<?= (int)$studentId ?>)" title="Ημερολόγιο και ετήσιο σύνολο απουσιών" aria-label="Ημερολόγιο και ετήσιο σύνολο απουσιών"><span aria-hidden="true">📅</span></button><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(<?= (int)$studentId ?>,'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
                                     <button type="button" class="btn btn-secondary btn-sm" 
                                             style="padding:4px 10px; font-size:12px; font-weight:600;" 
                                             title="Διαχείριση / Προσθήκη ώρας απουσίας" aria-label="Διαχείριση / Προσθήκη ώρας απουσίας"
@@ -2075,7 +2078,7 @@ function updateStudentRowGrid(studentId, sectionId, attendances, previewData, no
     const actionCell = document.getElementById(`action-cell-${studentId}`);
     if (actionCell) {
         const btnLabel = attCount > 0 ? '✏️' : '➕';
-        actionCell.innerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${studentId},'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
+        actionCell.innerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="openStudentAbsenceCalendar(${studentId})" title="Ημερολόγιο και ετήσιο σύνολο απουσιών" aria-label="Ημερολόγιο και ετήσιο σύνολο απουσιών"><span aria-hidden="true">📅</span></button><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${studentId},'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
             <button type="button" class="btn btn-secondary btn-sm" 
                     style="padding:4px 10px; font-size:12px; font-weight:600;" 
                     title="Διαχείριση / Προσθήκη ώρας απουσίας" aria-label="Διαχείριση / Προσθήκη ώρας απουσίας"
@@ -2113,13 +2116,19 @@ function updateGlobalKpis(kpi) {
 
 // Bulk Email Dynamic UI Engine
 function handleBulkEmailSubmit(event) {
-    event.preventDefault();
-    window.openBulkNotificationPreview('email');
-    return false;
+    return handleBulkNotificationSubmit(event, 'email');
 }
 function handleBulkSmsSubmit(event) {
+    return handleBulkNotificationSubmit(event, 'sms');
+}
+function handleBulkNotificationSubmit(event, channel) {
     event.preventDefault();
-    window.openBulkNotificationPreview('sms');
+    const showError = () => alert('Δεν άνοιξε η προεπισκόπηση. Δεν στάλθηκε μήνυμα. Ανανεώστε τη σελίδα και δοκιμάστε ξανά.');
+    if (typeof window.openBulkNotificationPreview !== 'function') {
+        showError();
+        return false;
+    }
+    window.openBulkNotificationPreview(channel).catch(showError);
     return false;
 }
 
@@ -2773,7 +2782,7 @@ document.addEventListener('keydown', function(e) {
             <td id="total-cell-${sid}" style="padding:10px 12px; text-align:center; font-weight:700; font-size:14px;"></td>
             <td style="padding:10px 12px; font-size:12px; line-height:1.4;">${guardiansHtml}</td>
             <td id="email-cell-${sid}" style="padding:10px 12px; text-align:center;"></td>
-            <td id="action-cell-${sid}" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${sid},'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
+            <td id="action-cell-${sid}" style="padding:10px 12px; text-align:right;"><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentAbsenceCalendar(${sid})" title="Ημερολόγιο και ετήσιο σύνολο απουσιών" aria-label="Ημερολόγιο και ετήσιο σύνολο απουσιών"><span aria-hidden="true">📅</span></button><button type="button" class="btn btn-secondary btn-sm" onclick="openStudentEmailComposer(${sid},'direct')" title="Νέο email" aria-label="Νέο email"><span aria-hidden="true">✉️</span></button>
                 <button type="button" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:12px; font-weight:600;" onclick='onLiveManageClick(${sid})' title="Διαχείριση / Προσθήκη ώρας απουσίας" aria-label="Διαχείριση / Προσθήκη ώρας απουσίας"><span aria-hidden="true">✏️</span></button>
             </td>
         `;
@@ -2934,14 +2943,5 @@ document.addEventListener('keydown', function(e) {
     livePollTimer = setTimeout(pollAttendanceUpdates, 2000);
 })();
 </script>
-<div class="print-only" style="margin-top:50px; display:flex; justify-content:space-between; align-items:flex-end; font-size:11pt; page-break-inside:avoid;">
-    <div>
-        Εκτυπώθηκε: <?= date('d/m/Y H:i') ?>
-    </div>
-    <div style="text-align:center; min-width:240px;">
-        Ο/Η Διευθυντής/ντρια<br><br><br><br>
-        ___________________________
-    </div>
-</div>
 <?php
 require_once __DIR__ . '/footer.php';

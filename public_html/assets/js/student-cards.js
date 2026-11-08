@@ -18,7 +18,13 @@ async function loadDayReasons() {
     const request=++reasonRequest;
     const buttons=[...modal.querySelectorAll('button[type="submit"]')];
     buttons.forEach(b=>b.disabled=true);
-    const status=document.getElementById('reasonLoadStatus');status.textContent='Φόρτωση αποθηκευμένων αιτιολογιών…';
+    const status=document.getElementById('reasonLoadStatus');
+    const selected=window.getJustificationDates?.();
+    if(selected && selected.length!==1) {
+        status.textContent=selected.length ? 'Η ίδια αιτιολογία και οι σημειώσεις θα εφαρμοστούν σε όλες τις '+selected.length+' επιλεγμένες ημέρες, αντικαθιστώντας τυχόν αποθηκευμένες τιμές τους.' : 'Επιλέξτε τουλάχιστον μία ημέρα.';
+        buttons.forEach(b=>b.disabled=!selected.length); return;
+    }
+    status.textContent='Φόρτωση αποθηκευμένων αιτιολογιών…';
     try {
         const query=new URLSearchParams({student_id:document.getElementById('justifyStudentId').value,date:document.getElementById('justifyDateFrom').value});
         const response=await fetch('../api/get_absence_reasons.php?'+query,{cache:'no-store'});
@@ -35,7 +41,7 @@ async function loadDayReasons() {
         if(request===reasonRequest) status.textContent='Δεν φορτώθηκαν οι αιτιολογίες. Κλείστε και ανοίξτε ξανά την καρτέλα για επανάληψη.';
     }
 }
-document.getElementById('justifyDateFrom')?.addEventListener('change',loadDayReasons);
+document.getElementById('justifyDateFrom')?.addEventListener('change',()=>queueMicrotask(loadDayReasons));
 
 function closeJustifyModal() {
     document.getElementById('justifyModal').style.display = 'none';

@@ -89,15 +89,16 @@ function marksImportMatches(PDO $db,array $preview): array {
     return ['users'=>$users,'sections'=>$sections,'teachers'=>$teachers,'section_matches'=>$sectionMatches];
 }
 
-function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $teacherMap,array $sectionMap): int {
+function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $teacherMap,array $sectionMap,string $assignmentPolicy='preserve'): int {
     if(($user['role']??'')!=='admin') throw new DomainException('Απαιτείται διαχειριστής.');
+    if(!in_array($assignmentPolicy,['preserve','replace'],true)) throw new DomainException('Επιλέξτε τρόπο εισαγωγής αναθέσεων.');
     if(!isset($preview['rows'])||count($preview['rows'])>5000) throw new DomainException('Μη έγκυρη προεπισκόπηση.');
     $db->beginTransaction();
     try {
         marksActiveYearLock($db,$year);
         $q=$db->prepare('SELECT name FROM academic_years WHERE id=?'); $q->execute([$year]);
         if($q->fetchColumn()!==$preview['year_name']) throw new DomainException('Το έτος της αναφοράς δεν συμφωνεί με το ενεργό έτος.');
-        $n=0; $synced=[]; $duplicates=[]; $createdTeachers=[];
+        $n=0; $synced=[]; $duplicates=[]; $createdTeachers=[]; $assignmentDecisions=[];
         foreach($preview['rows'] as $row) {
             $selection=$teacherMap[$row['teacher_key']]??null;
             if($selection==='new') {
@@ -125,9 +126,22 @@ function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $t
             $duplicates[$duplicate]=$row['line'];
             $db->prepare('INSERT INTO course_offerings(academic_year_id,section_id,subject_id,weekly_hours) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE weekly_hours=VALUES(weekly_hours)')->execute([$year,$section,$subject,$row['hours']]);
             $q=$db->prepare('SELECT * FROM course_offerings WHERE academic_year_id=? AND section_id=? AND subject_id=? FOR UPDATE'); $q->execute([$year,$section,$subject]); $course=$q->fetch(PDO::FETCH_ASSOC);
-            $q=$db->prepare('SELECT assignment_type,is_active,can_edit_marks FROM course_teachers WHERE course_offering_id=? AND teacher_id=?'); $q->execute([$course['id'],$teacher]); $oldAssignment=$q->fetch(PDO::FETCH_ASSOC)?:null;
-            $db->prepare('INSERT INTO course_teachers(course_offering_id,teacher_id,assignment_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE assignment_type=VALUES(assignment_type),is_active=1,can_edit_marks=1')->execute([$course['id'],$teacher,$row['assignment']]);
-            marksAudit($db,(int)$course['id'],(int)$user['id'],'assignment_import',$oldAssignment,['teacher_id'=>$teacher,'assignment_type'=>$row['assignment'],'is_active'=>1,'can_edit_marks'=>1]);
+            if(!array_key_exists($course['id'],$assignmentDecisions)) {
+                $q=$db->prepare("SELECT action FROM mark_audit_log WHERE course_offering_id=? AND action IN ('teacher_access','assignment_manual','assignment_reset') ORDER BY id DESC LIMIT 1");
+                $q->execute([$course['id']]);
+                $manual=in_array($q->fetchColumn(),['teacher_access','assignment_manual'],true);
+                $assignmentDecisions[$course['id']]=$assignmentPolicy==='replace'||!$manual;
+                if($assignmentPolicy==='replace') {
+                    $before=marksAssignmentSnapshot($db,(int)$course['id']);
+                    $db->prepare('UPDATE course_teachers SET is_active=0 WHERE course_offering_id=?')->execute([$course['id']]);
+                    marksAudit($db,(int)$course['id'],(int)$user['id'],'assignment_reset',$before,['source'=>'myschool']);
+                }
+            }
+            if($assignmentDecisions[$course['id']]) {
+                $q=$db->prepare('SELECT assignment_type,is_active,can_edit_marks FROM course_teachers WHERE course_offering_id=? AND teacher_id=?'); $q->execute([$course['id'],$teacher]); $oldAssignment=$q->fetch(PDO::FETCH_ASSOC)?:null;
+                $db->prepare('INSERT INTO course_teachers(course_offering_id,teacher_id,assignment_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE assignment_type=VALUES(assignment_type),is_active=1,can_edit_marks=1')->execute([$course['id'],$teacher,$row['assignment']]);
+                marksAudit($db,(int)$course['id'],(int)$user['id'],'assignment_import',$oldAssignment,['teacher_id'=>$teacher,'assignment_type'=>$row['assignment'],'is_active'=>1,'can_edit_marks'=>1]);
+            }
             if(!isset($synced[$course['id']])) {
                 $diff=marksSyncRoster($db,$course); $synced[$course['id']]=true;
                 marksAudit($db,(int)$course['id'],(int)$user['id'],'import',null,['subject_id'=>$subject,'roster_added'=>count($diff['add']),'roster_removed'=>count($diff['remove'])]);
@@ -136,6 +150,58 @@ function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $t
             $n++;
         }
         $db->commit(); return $n;
+    } catch(Throwable $e) { if($db->inTransaction()) $db->rollBack(); throw $e; }
+}
+
+function marksAssignmentSnapshot(PDO $db,int $id): array {
+    $q=$db->prepare('SELECT teacher_id,assignment_type,is_active,can_edit_marks FROM course_teachers WHERE course_offering_id=? ORDER BY teacher_id');
+    $q->execute([$id]); return $q->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Caller holds active-year and course locks in an administrator transaction.
+function marksChangeAssignment(PDO $db,array $course,array $user,array $input): void {
+    if(($user['role']??'')!=='admin') throw new DomainException('Απαιτείται διαχειριστής.');
+    $id=(int)$course['id']; $action=$input['action']??'';
+    if(!in_array($action,['teacher_access','assignment_add','assignment_replace'],true)) throw new DomainException('Μη έγκυρη ενέργεια ανάθεσης.');
+    $teacher=schoolRequestId($input['teacher_id']??null);
+    if(!$teacher) throw new DomainException('Επιλέξτε καθηγητή.');
+    $before=marksAssignmentSnapshot($db,$id); $byTeacher=array_column($before,null,'teacher_id');
+    if($action==='teacher_access') {
+        if(!isset($byTeacher[$teacher])) throw new DomainException('Δεν βρέθηκε ανάθεση.');
+        $active=isset($input['teacher_active'])?1:0;
+        $edit=isset($input['edit_access_present'])?(isset($input['can_edit_marks'])?1:0):(int)$byTeacher[$teacher]['can_edit_marks'];
+        $db->prepare('UPDATE course_teachers SET is_active=?,can_edit_marks=? WHERE course_offering_id=? AND teacher_id=?')->execute([$active,$edit,$id,$teacher]);
+    } else {
+        $q=$db->prepare("SELECT id FROM users WHERE id=? AND role IN ('teacher','teacher_admin','admin')");
+        $q->execute([$teacher]); if(!$q->fetchColumn()) throw new DomainException('Επιλέξτε έγκυρο λογαριασμό εκπαιδευτικού.');
+        if($action==='assignment_replace') {
+            $old=schoolRequestId($input['old_teacher_id']??null);
+            if(!$old||$old===$teacher||empty($byTeacher[$old]['is_active'])) throw new DomainException('Επιλέξτε διαφορετικό καθηγητή και έγκυρη ενεργή ανάθεση προς αντικατάσταση.');
+            $db->prepare('UPDATE course_teachers SET is_active=0 WHERE course_offering_id=? AND teacher_id=?')->execute([$id,$old]);
+        } elseif(!empty($byTeacher[$teacher]['is_active'])) throw new DomainException('Ο καθηγητής έχει ήδη ενεργή ανάθεση. Χρησιμοποιήστε την ενημέρωση πρόσβασης.');
+        $edit=isset($input['can_edit_marks'])?1:0;
+        $db->prepare("INSERT INTO course_teachers(course_offering_id,teacher_id,assignment_type,is_active,can_edit_marks) VALUES(?,?,'Χειροκίνητη',1,?) ON DUPLICATE KEY UPDATE is_active=1,can_edit_marks=VALUES(can_edit_marks)")->execute([$id,$teacher,$edit]);
+    }
+    $db->prepare('UPDATE course_offerings SET version=version+1 WHERE id=?')->execute([$id]);
+    marksAudit($db,$id,(int)$user['id'],'assignment_manual',$before,marksAssignmentSnapshot($db,$id));
+}
+
+function marksBulkReplace(PDO $db,int $year,array $user,array $input): void {
+    if(($user['role']??'')!=='admin') throw new DomainException('Απαιτείται διαχειριστής.');
+    $versions=$input['course_versions']??null;
+    if(!is_array($versions)||!$versions||count($versions)>500) throw new DomainException('Επιλέξτε από 1 έως 500 διδασκαλίες.');
+    ksort($versions,SORT_NUMERIC);
+    $db->beginTransaction();
+    try {
+        marksActiveYearLock($db,$year);
+        foreach($versions as $id=>$version) {
+            $id=schoolRequestId($id);
+            if(!$id||!is_scalar($version)) throw new DomainException('Μη έγκυρη επιλογή διδασκαλίας.');
+            $course=marksCourse($db,$year,$id,$user,true);
+            if((string)$version!==(string)$course['version']) throw new DomainException('Κάποια ανάθεση άλλαξε. Ελέγξτε ξανά την προεπισκόπηση.');
+            marksChangeAssignment($db,$course,$user,array_merge($input,['action'=>'assignment_replace']));
+        }
+        $db->commit();
     } catch(Throwable $e) { if($db->inTransaction()) $db->rollBack(); throw $e; }
 }
 
@@ -155,14 +221,8 @@ function marksManageCourse(PDO $db,int $year,int $id,array $user,array $input): 
             }
             $db->prepare('UPDATE course_offerings SET has_written_exam=?,is_active=?,version=version+1 WHERE id=?')->execute([$written,$active,$id]);
             marksAudit($db,$id,(int)$user['id'],'course_settings',[$course['has_written_exam'],$course['is_active']],[$written,$active]);
-        } elseif(($input['action']??'')==='teacher_access') {
-            $teacher=schoolRequestId($input['teacher_id']??null); if(!$teacher) throw new DomainException('Μη έγκυρος καθηγητής.');
-            $q=$db->prepare('SELECT is_active FROM course_teachers WHERE course_offering_id=? AND teacher_id=?'); $q->execute([$id,$teacher]); $old=$q->fetchColumn();
-            if($old===false) throw new DomainException('Δεν βρέθηκε ανάθεση.');
-            $active=isset($input['teacher_active'])?1:0;
-            $db->prepare('UPDATE course_teachers SET is_active=? WHERE course_offering_id=? AND teacher_id=?')->execute([$active,$id,$teacher]);
-            $db->prepare('UPDATE course_offerings SET version=version+1 WHERE id=?')->execute([$id]);
-            marksAudit($db,$id,(int)$user['id'],'teacher_access',[(int)$old,$teacher],[$active,$teacher]);
+        } elseif(in_array($input['action']??'', ['teacher_access','assignment_add','assignment_replace'],true)) {
+            marksChangeAssignment($db,$course,$user,$input);
         } else throw new DomainException('Μη υποστηριζόμενη ενέργεια.');
         $db->commit();
     } catch(Throwable $e) { if($db->inTransaction()) $db->rollBack(); throw $e; }

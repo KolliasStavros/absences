@@ -31,14 +31,7 @@ trait AbsencesRestore {
         return (bool)preg_match('~^(config|bin|release|scratch|tests|\.[^/]+)(/|$)~i',$path) || (bool)preg_match('/\.(zip|tar|gz|key|pem)$/i',$path) || in_array(strtolower($path),['install.php','admin/maintenance.php','includes/auth.php','includes/security.php','includes/diagnostics.php','includes/lifecycle.php','includes/lifecycle_guard.php','includes/lifecycle_restore.php','includes/lifecycle.md'],true);
     }
     private function restorePrivileges(): bool {
-        $privileges=[];
-        foreach($this->db->query('SHOW GRANTS')->fetchAll(PDO::FETCH_COLUMN) as $grant) {
-            if(preg_match('/^GRANT (.+) ON (.+) TO /i',$grant,$m) && in_array(str_replace('`','',$m[2]),['*.*',$this->database.'.*'],true)) {
-                $list=array_map('trim',explode(',',$m[1]));if(in_array('ALL PRIVILEGES',$list,true))return true;
-                array_push($privileges,...$list);
-            }
-        }
-        return !array_diff(['SELECT','INSERT','UPDATE','CREATE','DROP','REFERENCES'],$privileges);
+        return !array_diff(['SELECT','INSERT','UPDATE','CREATE','DROP','REFERENCES'],$this->databasePrivileges());
     }
     private function restoreFile(ZipArchive $zip,string $path): void {
         $target=$this->checkedPath($path,true);$directory=dirname($target);
@@ -83,7 +76,7 @@ trait AbsencesRestore {
     public function verifyRestoreBackup(string $id): array {
         $meta=$this->backupMeta($id);
         if(!is_array($meta['tables']??null) || !is_string($meta['version']??null) || !preg_match('/^\d+\.\d+\.\d+$/D',$meta['version']))throw new DomainException('Μη έγκυρα στοιχεία backup.');
-        $known=array_map(fn($name)=>$this->prefix.$name,self::TABLES);
+        $known=array_map(fn($name)=>$this->prefix.$name,$this->managedTables());
         if(array_diff($meta['tables'],$known) || count($meta['tables'])!==count(array_unique($meta['tables'])))throw new DomainException('Το backup περιέχει μη καταγεγραμμένους πίνακες.');
         foreach(['users','students','attendance'] as $required)if(!in_array($this->prefix.$required,$meta['tables'],true))throw new DomainException('Το backup δεν περιέχει πλήρη βάση εφαρμογής.');
         $zip=new ZipArchive();if($zip->open($this->store.'/'.$id.'.zip',ZipArchive::CHECKCONS)!==true)throw new DomainException('Δεν ανοίγει το backup.');

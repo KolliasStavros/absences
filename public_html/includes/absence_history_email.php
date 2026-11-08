@@ -25,3 +25,32 @@ function buildHistoryEmail(array $student,array $rows,?string $from,?string $to)
     $lines[]='';$lines[]=absenceEmailLegend($rows);$lines[]='';$lines[]='Στοιχεία κατά την προετοιμασία του μηνύματος.';
     return ['subject'=>'Ιστορικό απουσιών — '.$name,'body'=>implode("\n",$lines)];
 }
+
+function buildAbsenceSummaryEmail(array $student,array $rows,?string $from,?string $to,string $year,string $school,bool $includeDaily=false): array {
+    $totals=['absent'=>0,'justified'=>0,'expulsion'=>0,'leave'=>0];
+    foreach($rows as $row) {
+        $type=$row['absence_type']??'absent';
+        if(!isset($totals[$type])) $type='absent';
+        $totals[$type]++;
+    }
+    $name=$student['last_name'].' '.$student['first_name'];
+    $period=$from===null?'Ολόκληρο το σχολικό έτος':date('d/m/Y',strtotime($from)).' έως '.date('d/m/Y',strtotime($to));
+    $lines=['Αγαπητέ/ή κηδεμόνα,','','Σας ενημερώνουμε συγκεντρωτικά για τις καταχωρισμένες απουσίες του/της '.$name.' (Α.Μ. '.$student['am'].').',
+        'Σχολικό έτος: '.$year,'Περίοδος: '.$period,'','Σύνολο απουσιών: '.count($rows).' ώρες',
+        'Κοινές απουσίες: '.$totals['absent'],'Δικαιολογημένες: '.$totals['justified'],'Ωριαίες αποβολές: '.$totals['expulsion'],'Με άδεια: '.$totals['leave'],
+        '','Οι άδειες και οι ωριαίες αποβολές περιλαμβάνονται στο σύνολο. Η άδεια δεν αποτελεί δικαιολόγηση.',
+        'Τα στοιχεία αφορούν τις καταχωρίσεις κατά την προετοιμασία του μηνύματος.'];
+    if($includeDaily) {
+        $days=[];
+        foreach($rows as $row) {
+            $type=$row['absence_type']??'absent'; if(!isset($totals[$type])) $type='absent';
+            $days[$row['date']][$type]=($days[$row['date']][$type]??0)+1;
+        }
+        ksort($days);
+        $lines[]=''; $lines[]='Ανάλυση ανά ημερομηνία (ώρες):';
+        foreach($days as $date=>$counts) $lines[]=date('d/m/Y',strtotime($date)).' | Σύνολο '.array_sum($counts).' | Κοινές '.($counts['absent']??0).' | Δικαιολογημένες '.($counts['justified']??0).' | Αποβολές '.($counts['expulsion']??0).' | Με άδεια '.($counts['leave']??0);
+        if(!$rows) $lines[]='Δεν υπάρχουν καταχωρισμένες απουσίες για την περίοδο.';
+    }
+    $lines[]=''; $lines[]='Με εκτίμηση,'; $lines[]=$school;
+    return ['subject'=>'Συγκεντρωτική ενημέρωση απουσιών — '.$name,'body'=>implode("\n",$lines)];
+}
