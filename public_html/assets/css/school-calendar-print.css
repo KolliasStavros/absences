@@ -1,0 +1,22 @@
+#calendar-print-report{display:none}
+body.calendar-print-preview{margin:0;background:#f1f5f9;font:15px/1.5 Arial,sans-serif;color:#172033}
+body.calendar-print-preview #calendar-print-report{display:block;max-width:850px;margin:20px auto;padding:30px;background:white}
+.calendar-print-controls{max-width:850px;margin:20px auto;padding:0 16px}
+.calendar-print-controls button{padding:12px 18px;border:0;border-radius:8px;background:#4f46e5;color:white;cursor:pointer;font-size:15px}
+body.calendar-print-preview #calendar-print-report header{text-align:center;border-bottom:1px solid #555}
+body.calendar-print-preview #calendar-print-report article{border-bottom:1px solid #ccc;padding:16px 0;overflow-wrap:anywhere}
+body.calendar-print-preview .calendar-print-description{white-space:pre-wrap}
+@media print{
+    @page{size:A4 portrait;margin:15mm}
+    body.calendar-printing{background:white!important;color:black!important}
+    body.calendar-printing>*:not(#calendar-print-report){display:none!important}
+    body.calendar-printing>#calendar-print-report{display:block!important;font:10pt/1.45 Arial,sans-serif;color:black}
+    #calendar-print-report *{color:black!important;background:transparent!important;box-shadow:none!important;text-shadow:none!important}
+    #calendar-print-report header{text-align:center;border-bottom:1pt solid black;padding-bottom:4mm;margin-bottom:4mm}
+    #calendar-print-report h1{font-size:15pt;margin:0 0 2mm}
+    #calendar-print-report h2{font-size:13pt;margin:0 0 2mm}
+    #calendar-print-report h3{font-size:11pt;margin:0 0 2mm;break-after:avoid}
+    #calendar-print-report p{margin:1mm 0}
+    #calendar-print-report article{border-bottom:.5pt solid #777;padding:4mm 0;overflow-wrap:anywhere}
+    #calendar-print-report .calendar-print-description{white-space:pre-wrap;margin-top:2mm;orphans:3;widows:3}
+}

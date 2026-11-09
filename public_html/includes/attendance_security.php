@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__.'/teacher_assignments.php';
+require_once __DIR__.'/attendance_undo.php';
 // A single year mutex serializes every attendance mutation, including empty slots.
 // Row locks alone cannot protect two concurrent inserts into an empty slot.
 function beginAttendanceMutation(PDO $db, int $yearId, array $roles = ['admin','teacher_admin','teacher']): array {
@@ -22,11 +24,12 @@ function attendanceDenied(PDO $db, int $status, string $message): never {
 }
 
 function validateAttendanceSection(PDO $db, int $sectionId, int $yearId, array $user): void {
+    $attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
     $stmt = $db->prepare('SELECT id FROM sections WHERE id = ?');
     $stmt->execute([$sectionId]);
     if (!$stmt->fetchColumn()) attendanceDenied($db, 400, 'Μη έγκυρο τμήμα.');
     if ($user['role'] === 'teacher') {
-        $stmt = $db->prepare('SELECT 1 FROM teacher_sections WHERE teacher_id = ? AND section_id = ? AND academic_year_id = ? LOCK IN SHARE MODE');
+        $stmt = $db->prepare("SELECT 1 FROM {$attendanceAssignmentsSql} ta WHERE teacher_id = ? AND section_id = ? AND academic_year_id = ? LOCK IN SHARE MODE");
         $stmt->execute([$user['id'], $sectionId, $yearId]);
         if (!$stmt->fetchColumn()) attendanceDenied($db, 403, 'Δεν έχετε ανάθεση στο τμήμα.');
     } elseif (!in_array($user['role'], ['admin', 'teacher_admin'], true)) {

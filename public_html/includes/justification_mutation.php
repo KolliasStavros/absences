@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__.'/absence_reasons.php';
+require_once __DIR__.'/attendance_undo.php';
 // Called inside the controller transaction after active-year and student locks.
 function applyJustificationDates(PDO $db,int $activeYearId,int $studentId,array $dates,string $action,string $code,string $unjustified,string $protocol,array $actor): string {
     if(($actor['role']??'')!=='admin'||!$db->inTransaction()) throw new DomainException('Απαιτείται διαχειριστής και ενεργή συναλλαγή.');
     $message='';
             $totalAffected=0;
             foreach($dates as $date) {
+            $undoCapture=attendanceUndoCapture($db,$activeYearId,$date,[$studentId]);
             $q=$db->prepare("SELECT absence_type,COUNT(*) AS n FROM attendance WHERE student_id=? AND academic_year_id=? AND date=? AND is_absent=1 GROUP BY absence_type");
             $q->execute([$studentId,$activeYearId,$date]);$counts=[];
             foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) $counts[$row['absence_type'] ?? 'absent']=($counts[$row['absence_type'] ?? 'absent']??0)+(int)$row['n'];
@@ -24,6 +26,7 @@ function applyJustificationDates(PDO $db,int $activeYearId,int $studentId,array 
                 $message = "Δικαιολογήθηκαν {$affected} ώρες. Ο λόγος δικαιολόγησης και οι σημειώσεις αποθηκεύτηκαν για την επιλεγμένη ημέρα.";
                 if (($counts['expulsion']??0)>0) $message .= ' Οι αποβολές διατηρήθηκαν αμετάβλητες.';
             }
+            attendanceUndoRecord($db,$undoCapture,$actor);
             }
             if(count($dates)>1) $message=$action==='justify' ? 'Δικαιολογήθηκαν '.$totalAffected.' ώρες σε '.count($dates).' επιλεγμένες ημέρες. Οι αιτιολογίες και οι σημειώσεις εφαρμόστηκαν στις ημέρες αυτές· οι αποβολές διατηρήθηκαν.' : 'Η αιτία αδικαιολόγητης απουσίας αποθηκεύτηκε σε '.count($dates).' επιλεγμένες ημέρες. Οι καταστάσεις δεν άλλαξαν.';
     return $message;

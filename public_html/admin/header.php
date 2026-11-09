@@ -12,6 +12,7 @@ if (!isAdmin() && !isTeacherAdmin()) {
 $schoolName = getSchoolSetting('school_name', '1ο Γενικό Λύκειο');
 $currentPage = basename($_SERVER['PHP_SELF']);
 $activeAcademicYear = getActiveAcademicYear();
+require_once __DIR__.'/../includes/school_calendar_reminders.php';
 
 // Restrict system management pages from teacher_admin
 $adminOnlyPages = ['settings.php', 'import.php', 'teachers.php', 'sections.php', 'students.php', 'logs.php', 'maintenance.php', 'technical_errors.php'];
@@ -116,6 +117,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
         <div class="nav-tabs" id="adminNavigation" aria-label="Κεντρική πλοήγηση">
             <a href="index.php" class="nav-tab <?= $currentPage === 'index.php' ? 'active' : '' ?>">📊 Σημερινές Απουσίες</a>
             <a href="student_cards.php" class="nav-tab <?= $currentPage === 'student_cards.php' ? 'active' : '' ?>">📋 Καρτέλες Απουσιών &amp; Όρια</a>
+            <a href="calendar.php" class="nav-tab <?= $currentPage === 'calendar.php' ? 'active' : '' ?>" <?= $currentPage === 'calendar.php' ? 'aria-current="page"' : '' ?>>📅 Ημερολόγιο σχολείου<?= calendarReminderBadge(getDB(),$user,(int)$activeAcademicYear['id']) ?></a>
             <a href="<?= isAdmin()?'marks.php':'../teacher/marks.php' ?>" class="nav-tab <?= $currentPage === 'marks.php' ? 'active' : '' ?>" <?= $currentPage === 'marks.php' ? 'aria-current="page"' : '' ?>>📚 Βαθμολογία</a>
 
             <?php if (isAdmin()): ?>
@@ -206,3 +208,4 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                 <span style="font-size:11px; opacity:0.85;">&nearr;</span>
             </a>
         </div>
+

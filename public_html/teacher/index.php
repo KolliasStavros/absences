@@ -5,6 +5,8 @@ requireTeacher();
 
 $user = getCurrentUser();
 $db = getDB();
+require_once __DIR__.'/../includes/teacher_assignments.php';
+$attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
 $activeAcademicYear = getActiveAcademicYear();
 $activeYearId = $activeAcademicYear ? (int)$activeAcademicYear['id'] : 1;
 
@@ -22,7 +24,7 @@ if ($user['role'] === 'admin' || $user['role'] === 'teacher_admin') {
         SELECT s.id, s.name, g.name as grade_name 
         FROM sections s 
         JOIN grades g ON s.grade_id = g.id 
-        JOIN teacher_sections ts ON s.id = ts.section_id 
+        JOIN {$attendanceAssignmentsSql} ts ON s.id = ts.section_id 
         WHERE ts.teacher_id = ? AND ts.academic_year_id = ?
         ORDER BY g.name ASC, s.name ASC
     ");

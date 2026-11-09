@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['delete_absence_id'])) {
             $user = beginAttendanceMutation($db, $activeYearId, ['admin','teacher_admin']);
             $attId = (int)$_POST['delete_absence_id'];
-            $stmt = $db->prepare("SELECT id, absence_type, is_absent FROM attendance WHERE id = ? AND academic_year_id = ? FOR UPDATE");
+            $stmt = $db->prepare("SELECT id, student_id, date, absence_type, is_absent FROM attendance WHERE id = ? AND academic_year_id = ? FOR UPDATE");
             $stmt->execute([$attId, $activeYearId]);
             $att = $stmt->fetch();
             if (!$att) {
@@ -49,8 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (in_array($att['absence_type'], ['justified','leave'], true) && !canJustifyAbsences()) {
                 $actionError = 'Μόνο οι διαχειριστές του σχολείου μπορούν να τροποποιήσουν ή να διαγράψουν δικαιολογημένες απουσίες ή άδειες.';
             } else {
+$undoCapture=attendanceUndoCapture($db,$activeYearId,$att['date'],[$att['student_id']]);
                 $stmt = $db->prepare("DELETE FROM attendance WHERE id = ?");
                 $stmt->execute([$attId]);
+                attendanceUndoRecord($db,$undoCapture,$user,true);
                 $actionMessage = 'Η απουσία διαγράφηκε επιτυχώς.';
             }
             $db->commit();
@@ -77,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user = beginAttendanceMutation($db, $activeYearId, ['admin','teacher_admin']);
                     validateAttendanceSection($db,$sectionId,$activeYearId,$user);
                     validateAttendanceStudent($db,$studentId,$sectionId,$activeYearId);
+                    $undoCapture=attendanceUndoCapture($db,$activeYearId,$date,[$studentId]);
                     if (in_array($absenceType, ['justified','leave'], true) && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η άδεια ή η δικαιολόγηση.');
                     assertMutableAttendanceHours($db,$studentId,$date,$activeYearId,[$hour]);
                     $stmt = $db->prepare("
@@ -86,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ");
                     $stmt->execute([$activeYearId, $date, $hour, $sectionId, $studentId, $user['id'], $absenceType]);
                     
+                    attendanceUndoRecord($db,$undoCapture,$user,true);
                     $db->commit();
                     $typeName = absenceTypeLabel($absenceType);
                     $actionMessage = "Η {$hour}η ώρα καταχωρήθηκε επιτυχώς ως {$typeName}!";
@@ -129,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user = beginAttendanceMutation($db,$activeYearId,['admin','teacher_admin']);
                     validateAttendanceSection($db,$sectionId,$activeYearId,$user);
                     validateAttendanceStudent($db,$studentId,$sectionId,$activeYearId);
+                    $undoCapture=attendanceUndoCapture($db,$activeYearId,$date,[$studentId]);
                     if (in_array($absenceType, ['justified','leave'], true) && !canJustifyAbsences()) attendanceDenied($db,403,'Δεν επιτρέπεται η άδεια ή η δικαιολόγηση.');
                     if(!is_array($selectedHours) || array_filter($selectedHours,fn($h)=>(int)$h<1 || (int)$h>8)) attendanceDenied($db,400,'Μη έγκυρες ώρες.');
                     assertMutableAttendanceHours($db,$studentId,$date,$activeYearId,array_map('intval',$selectedHours));
@@ -146,6 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
 
+                    attendanceUndoRecord($db,$undoCapture,$user,true);
                     $db->commit();
 
                     $actionMessage = "Καταχωρήθηκαν επιτυχώς " . count($selectedHours) . " ώρες για την ημερομηνία " . date('d/m/Y', strtotime($date)) . "!";
@@ -981,6 +987,11 @@ $printStatuses=['all'=>'Όλοι οι μαθητές','absent_only'=>'Μαθητ
 ?>
 <link rel="stylesheet" href="../assets/css/attendance-print.css?v=1">
 <link rel="stylesheet" href="../assets/css/attendance-calendar.css?v=1">
+<link rel="stylesheet" href="../assets/css/attendance-undo.css?v=2">
+<script type="application/json" id="attendance-undo-config"><?= json_encode(['ready'=>attendanceUndoReady($db),'year'=>$activeYearId,'date'=>$selectedDate,'today'=>date('Y-m-d'),'csrf'=>getCsrfToken()],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
+<script src="../assets/js/attendance-undo.js?v=2" defer></script>
+<div id="attendanceUndoTools" aria-label="Ιστορικό αλλαγών απουσιών"></div>
+
 <script src="../assets/js/attendance-calendar.js?v=1" defer></script>
 <script type="application/json" id="attendance-print-config"><?= json_encode(['school'=>$schoolName,'date'=>date('d/m/Y',strtotime($selectedDate)),'year'=>$activeAcademicYear['name']??'','filters'=>$printGrade.' · '.$printSection.' · '.$printStatuses[$statusFilter]],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
 <script src="../assets/js/attendance-print.js?v=1" defer></script>
@@ -1003,6 +1014,7 @@ $printStatuses=['all'=>'Όλοι οι μαθητές','absent_only'=>'Μαθητ
         
     </div>
     <div class="dashboard-page-actions no-print">
+        <span id="attendanceUndoAction"></span>
         <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()" aria-label="Εκτύπωση Δελτίου" style="display:inline-flex; align-items:center; gap:6px;" title="Εκτύπωση Επίσημου Ημερήσιου Δελτίου Απουσιών">
             <span>🖨️</span> <strong class="mobile-action-label">Εκτύπωση Δελτίου</strong>
         </button>

@@ -102,6 +102,7 @@ try {
             updated_at = NOW()
     ");
 
+    $undoCapture=attendanceUndoCapture($db,$activeYearId,$date,$sectionStudents);
     $leaveCount = 0;
     $absentCount = 0;
     $expulsionCount = 0;
@@ -147,6 +148,7 @@ try {
         $stmtUpsert->execute([$activeYearId, $date, $hour, $sectionId, $sId, $user['id'], $isAbsent, $absenceType]);
     }
 
+    attendanceUndoRecord($db,$undoCapture,$user);
     $db->commit();
     echo json_encode([
         'success' => true, 

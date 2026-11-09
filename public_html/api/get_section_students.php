@@ -27,6 +27,8 @@ if ($emptySection) schoolJsonResponse(['students'=>[]]);
 if ($sectionId===null) schoolJsonResponse(['error'=>'Μη έγκυρο τμήμα.'],400);
 
 $db = getDB();
+require_once __DIR__.'/../includes/teacher_assignments.php';
+$attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
 require_once __DIR__.'/../includes/co_teaching.php';
 $sectionMembershipSql=coTeachingMembershipSql(coTeachingGroups($db));
 $activeYear = getActiveAcademicYear();
@@ -34,7 +36,7 @@ $activeYearId = $activeYear ? (int)$activeYear['id'] : 1;
 
 // If user is teacher, ensure this section is assigned to them for active year
 if ($user['role'] === 'teacher') {
-    $stmt = $db->prepare("SELECT 1 FROM teacher_sections WHERE teacher_id = ? AND section_id = ? AND academic_year_id = ?");
+    $stmt = $db->prepare("SELECT 1 FROM {$attendanceAssignmentsSql} ta WHERE teacher_id = ? AND section_id = ? AND academic_year_id = ?");
     $stmt->execute([$user['id'], $sectionId, $activeYearId]);
     if (!$stmt->fetch()) {
         http_response_code(403);

@@ -53,6 +53,7 @@ if (in_array($action,['set_note','set'],true) && isset($input['note']) && !is_st
 $db = getDB();
 $activeYear = getActiveAcademicYear();
 $activeYearId = $activeYear ? (int)$activeYear['id'] : 1;
+if(isset($_SERVER['HTTP_X_ATTENDANCE_YEAR'])&&schoolRequestId($_SERVER['HTTP_X_ATTENDANCE_YEAR'])!==$activeYearId) schoolJsonResponse(['error'=>'Το σχολικό έτος άλλαξε. Ανανεώστε τη σελίδα.'],409);
 
 if (!in_array($action, ['toggle','set','cycle','set_all_day','clear_all_day','set_note'], true) || (!in_array($action, ['set_all_day','clear_all_day'], true) && ($hour < 1 || $hour > 8))) {
     attendanceDenied($db, 400, 'Μη έγκυρη ενέργεια ή ώρα.');
@@ -74,6 +75,7 @@ try {
         attendanceDenied($db, 403, 'Οι δικαιολογημένες απουσίες και οι άδειες προστατεύονται. Η ενέργεια ακυρώθηκε ολόκληρη.');
     }
 
+    $undoCapture=attendanceUndoCapture($db,$activeYearId,$date,[$studentId]);
     if ($action === 'set_all_day') {
         // Mark hours 1 through 7 with requested absence_type
         $stmtUpsert = $db->prepare("
@@ -285,6 +287,7 @@ try {
         }
     }
 
+    attendanceUndoRecord($db,$undoCapture,$user,true);
     $db->commit();
 
     // Fetch updated absence hours for this student on this date

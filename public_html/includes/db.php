@@ -13,6 +13,8 @@ class AppPDO extends PDO {
         'login_attempts', 'notification_logs', 'password_resets',
         'reset_requests', 'student_sections', 'teacher_sections',
         'sections', 'settings', 'smtp_accounts', 'students', 'users',
+        'attendance_edit_batches', 'attendance_edit_changes',
+        'calendar_managers', 'school_calendar_events', 'calendar_event_readers', 'calendar_audit_log',
         'subjects', 'course_offerings', 'course_teachers', 'assessment_periods',
         'course_students', 'student_marks', 'mark_submissions', 'mark_audit_log', 'mark_teacher_aliases'
     ];

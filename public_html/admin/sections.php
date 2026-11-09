@@ -4,6 +4,8 @@ $pageTitle = 'Τμήματα & Τάξεις';
 require_once __DIR__ . '/header.php';
 
 $db = getDB();
+require_once __DIR__.'/../includes/teacher_assignments.php';
+$attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
 require_once __DIR__.'/../includes/co_teaching.php';
 require_once __DIR__.'/../includes/request_validation.php';
 $activeYearId=(int)getActiveAcademicYear()['id'];
@@ -134,7 +136,7 @@ $sectionsQuery = "
     JOIN grades g ON s.grade_id = g.id
     LEFT JOIN {$sectionMembershipSql} ss ON s.id = ss.section_id
     LEFT JOIN students stu ON (ss.student_id = stu.id AND stu.academic_year_id = ?)
-    LEFT JOIN teacher_sections ts ON (s.id = ts.section_id AND ts.academic_year_id = ?)
+    LEFT JOIN {$attendanceAssignmentsSql} ts ON (s.id = ts.section_id AND ts.academic_year_id = ?)
     LEFT JOIN users u ON ts.teacher_id = u.id
     GROUP BY s.id
     ORDER BY g.name ASC, s.name ASC

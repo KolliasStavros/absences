@@ -1,11 +1,16 @@
 <?php
 // admin/teachers.php - Teacher Management & Section Assignments
+require_once __DIR__.'/../config/config.php';
+requireAdmin();
+if(($_GET['view']??null)==='import') { require __DIR__.'/../includes/teacher_assignment_import_page.php'; exit; }
 $pageTitle = 'Καθηγητές & Αναθέσεις';
 require_once __DIR__ . '/header.php';
 requireAdmin();
 require_once __DIR__ . '/../includes/admin_accounts.php';
 
 $db = getDB();
+require_once __DIR__.'/../includes/teacher_assignments.php';
+$attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
 $activeAcademicYear = getActiveAcademicYear();
 $activeYearId = $activeAcademicYear ? (int)$activeAcademicYear['id'] : 1;
 $message = '';
@@ -220,15 +225,16 @@ $teachersStmt = $db->prepare("
     SELECT u.id, u.name, u.email, u.role, u.status, u.created_at, u.last_active_at,
            TIMESTAMPDIFF(SECOND, u.last_active_at, NOW()) as seconds_since_active,
            GROUP_CONCAT(s.name ORDER BY s.name SEPARATOR ', ') as section_names,
-           GROUP_CONCAT(s.id) as section_ids
+           GROUP_CONCAT(s.id) as section_ids,
+           (SELECT GROUP_CONCAT(manual.section_id) FROM teacher_sections manual WHERE manual.teacher_id=u.id AND manual.academic_year_id=?) AS manual_section_ids
     FROM users u
-    LEFT JOIN teacher_sections ts ON (u.id = ts.teacher_id AND ts.academic_year_id = ?)
+    LEFT JOIN {$attendanceAssignmentsSql} ts ON (u.id = ts.teacher_id AND ts.academic_year_id = ?)
     LEFT JOIN sections s ON ts.section_id = s.id
     WHERE u.role IN ('teacher', 'teacher_admin', 'admin')
     GROUP BY u.id
     ORDER BY u.name ASC
 ");
-$teachersStmt->execute([$activeYearId]);
+$teachersStmt->execute([$activeYearId,$activeYearId]);
 $teachers = $teachersStmt->fetchAll();
 
 // Helper to format human-readable online / last active status
@@ -265,6 +271,7 @@ function formatTeacherActivity($seconds, $timestamp) {
     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
 <?php endif; ?>
 
+<p class="alert alert-info">Τα τμήματα απουσιών προκύπτουν αυτόματα από τις ενεργές διδασκαλίες. Στην επεξεργασία καθηγητή επιλέγετε μόνο πρόσθετα χειροκίνητα τμήματα. Για αφαίρεση αυτόματου τμήματος αλλάξτε την αντίστοιχη διδασκαλία.</p>
 <!-- Header Banner with Import Button -->
 <div class="card" style="margin-bottom:20px; padding:18px 20px;">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
@@ -273,15 +280,15 @@ function formatTeacherActivity($seconds, $timestamp) {
                 <span>👥</span> Διαχείριση Καθηγητών &amp; Αναθέσεων Τμημάτων
             </h1>
             <p style="color:var(--text-muted); font-size:13px; margin:0;">
-                Καταχώρηση καθηγητών, ορισμός δικαιωμάτων σύνδεσης και ανάθεση τμημάτων για το σχολικό έτος <strong><?= htmlspecialchars($activeAcademicYear['name'] ?? '2026-2027') ?></strong>.
+                Κοινοί λογαριασμοί για απουσίες και βαθμολογία, εισαγωγή μαθημάτων και ανάθεση τμημάτων για το σχολικό έτος <strong><?= htmlspecialchars($activeAcademicYear['name'] ?? '2026-2027') ?></strong>.
             </p>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <button type="button" onclick="openAddTeacherModal()" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; font-weight:700;">
                 <span>➕</span> Προσθήκη Καθηγητή
             </button>
-            <a href="import.php?type=teachers" class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; font-weight:700; text-decoration:none;">
-                <span>📥</span> Εισαγωγή από MySchool (Excel)
+            <a href="teachers.php?view=import" class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; font-weight:700; text-decoration:none;">
+                <span>📥</span> Εισαγωγή αναθέσεων MySchool
             </a>
         </div>
     </div>
@@ -547,7 +554,7 @@ function formatTeacherActivity($seconds, $timestamp) {
         </div>
         <form method="POST" action="teachers.php">
             <?= csrfField() ?>
-            <input type="hidden" name="teacher_id" id="modalTeacherId">
+            <input type="hidden" name="teacher_id" id="modalTeacherId"><p style="font-size:13px;color:var(--text-muted)">Επιλέγετε πρόσθετα χειροκίνητα τμήματα. Τα τμήματα από τις ενεργές διδασκαλίες προστίθενται αυτόματα και αλλάζουν από τις αναθέσεις μαθημάτων.</p>
             <div class="form-group" style="margin-bottom:12px;">
                 <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Ονοματεπώνυμο</label>
                 <input type="text" name="teacher_name" id="modalTeacherInputName" class="form-control" required style="font-size:13px;">
@@ -703,7 +710,7 @@ function formatTeacherActivity($seconds, $timestamp) {
             document.getElementById('modalTeacherInputRole').value = teacher.role || 'teacher';
         }
 
-        const currentIds = (teacher.section_ids || '').split(',').map(id => id.trim());
+        const currentIds = (teacher.manual_section_ids || '').split(',').map(id => id.trim());
         document.querySelectorAll('.modal-section-check').forEach(cb => {
             cb.checked = currentIds.includes(cb.value);
         });

@@ -6,7 +6,8 @@ $db=getDB(); $user=getCurrentUser(); $admin=$user['role']==='admin';
 $year=getActiveAcademicYear(); $yearId=(int)$year['id'];
 if(isset($_SESSION['marks_import'])&&(!is_array($_SESSION['marks_import'])||time()-(int)($_SESSION['marks_import']['created']??0)>1800||($_SESSION['marks_import']['year_id']??null)!==$yearId)) unset($_SESSION['marks_import']);
 $view=is_string($_GET['view']??null)?$_GET['view']:($admin?'overview':'entry');
-$allowed=$admin?['courses','entry','submissions','overview','import','manage','settings','history']:['courses','entry','submissions'];
+if($admin&&$view==='import'&&($_SERVER['REQUEST_METHOD']??'GET')==='GET') { header('Location: '.BASE_URL.'/admin/teachers.php?view=import',true,302); exit; }
+$allowed=$admin?['courses','entry','submissions','overview','manage','settings','history']:['courses','entry','submissions'];
 if(!in_array($view,$allowed,true)) { http_response_code(403); exit('Δεν επιτρέπεται η πρόσβαση σε αυτή τη σελίδα.'); }
 $error=''; $message=$_SESSION['marks_flash']??''; unset($_SESSION['marks_flash']);
 $ready=marksReady($db);
@@ -35,27 +36,6 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
         } elseif(!$ready) throw new DomainException('Χρειάζεται πρώτα ενεργοποίηση της ενότητας.');
         elseif($action==='initialize') {
             marksSeedPeriods($db,$yearId); $message='Δημιουργήθηκαν οι τρεις περίοδοι για το ενεργό έτος.';
-        } elseif($action==='preview') {
-            unset($_SESSION['marks_import']);
-            $file=$_FILES['assignments']??null;
-            if(!is_array($file)||($file['error']??1)!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name']??'')) throw new DomainException('Δεν παραλήφθηκε έγκυρο αρχείο.');
-            try { $preview=marksReadAssignments($file['tmp_name']); }
-            catch(DomainException $e) { throw $e; }
-            catch(Throwable $e) { throw new DomainException('Η αναφορά δεν διαβάζεται. Ελέγξτε ότι είναι έγκυρο αρχείο αναθέσεων MySchool.'); }
-            finally { if(is_uploaded_file($file['tmp_name'])) unlink($file['tmp_name']); }
-            if($preview['year_name']!==$year['name']) throw new DomainException('Η αναφορά αφορά διαφορετικό σχολικό έτος από το ενεργό.');
-            $preview['created']=time(); $preview['year_id']=$yearId; $preview['token']=bin2hex(random_bytes(16));
-            $_SESSION['marks_import']=$preview; $message='Ελέγξτε τις αντιστοιχίσεις και επιβεβαιώστε την εισαγωγή.';
-        } elseif($action==='commit_import') {
-            $preview=$_SESSION['marks_import']??null;
-            if(!is_array($preview)||time()-(int)$preview['created']>1800||$preview['year_id']!==$yearId||!is_string($_POST['preview_token']??null)||!hash_equals($preview['token'],$_POST['preview_token'])) throw new DomainException('Η προεπισκόπηση έληξε. Ανεβάστε ξανά την αναφορά.');
-            $teachers=$_POST['teacher_map']??[]; $sections=$_POST['section_map']??[];
-            if(!is_array($teachers)||!is_array($sections)) throw new DomainException('Μη έγκυρες αντιστοιχίσεις.');
-            $teacherMap=[]; $sectionMap=[];
-            foreach($preview['rows'] as $row) { $teacherMap[$row['teacher_key']]=$teachers[hash('sha256',$row['teacher_key'])]??null; $sectionMap[$row['section']]=$sections[hash('sha256',$row['section'])]??null; }
-            $policy=$_POST['assignment_policy']??null;
-            if(!is_string($policy)||!in_array($policy,['preserve','replace'],true)) throw new DomainException('Επιλέξτε διατήρηση ή αντικατάσταση χειροκίνητων αναθέσεων.');
-            $n=marksCommitImport($db,$yearId,$user,$preview,$teacherMap,$sectionMap,$policy); unset($_SESSION['marks_import']); $message='Επεξεργάστηκαν '.$n.' γραμμές αναθέσεων. '.($policy==='preserve'?'Διατηρήθηκαν οι χειροκίνητες αλλαγές.':'Οι αναθέσεις των μαθημάτων της αναφοράς αντικαταστάθηκαν από το MySchool.');
         } elseif($action==='settings') {
             if(!is_array($_POST['periods']??null)) throw new DomainException('Μη έγκυρες ρυθμίσεις.');
             marksSaveSettings($db,$yearId,$_POST['periods']); $message='Οι ρυθμίσεις αποθηκεύτηκαν χωρίς μεταβολή των υπαρχόντων βαθμών.';
@@ -143,7 +123,7 @@ if (!empty($marksAdminLayout)) {
 $nav = $admin ? ['overview' => 'Επισκόπηση'] : [];
 $nav += ['entry' => 'Καταχώριση βαθμών', 'courses' => $admin ? 'Μαθήματα' : 'Τα μαθήματά μου',
     'submissions' => $admin ? 'Πληρότητα υποβολών' : 'Οι υποβολές μου'];
-if($admin) $nav+=['import'=>'Εισαγωγή αναθέσεων','manage'=>'Μαθήματα και αναθέσεις','settings'=>'Ρυθμίσεις βαθμολογίας'];
+if($admin) $nav+=['manage'=>'Μαθήματα και αναθέσεις','settings'=>'Ρυθμίσεις βαθμολογίας'];
 foreach($nav as $key=>$label): ?><a href="<?= $h($url(['view'=>$key])) ?>" <?= $view===$key?'class="active" aria-current="page"':'' ?>><?= $h($label) ?></a><?php endforeach; ?>
 </nav>
 <main class="marks-main"><h1><?= $h($nav[$view]??'Ιστορικό αλλαγών') ?></h1><p class="marks-muted">Βαθμολογία · <?= $h($year['name']) ?></p>
@@ -159,19 +139,6 @@ foreach($nav as $key=>$label): ?><a href="<?= $h($url(['view'=>$key])) ?>" <?= $
 <?php foreach($periods as $p): ?><tr><th scope="row"><?= $h($p['name']) ?><input type="hidden" name="periods[<?= (int)$p['id'] ?>][version]" value="<?= (int)$p['version'] ?>"></th>
 <?php foreach(['min_mark'=>'Ελάχιστος','max_mark'=>'Μέγιστος','mark_step'=>'Βήμα'] as $key=>$label): ?><td><input class="form-control marks-settings-input" type="text" inputmode="decimal" required aria-label="<?= $h($p['name'].' '.$label) ?>" name="periods[<?= (int)$p['id'] ?>][<?= $key ?>]" value="<?= $h(str_replace('.',',',$p[$key])) ?>"></td><?php endforeach; ?>
 <td><input type="checkbox" aria-label="<?= $h($p['name'].' ανοικτή καταχώριση') ?>" name="periods[<?= (int)$p['id'] ?>][is_open]" value="1" <?= $p['is_open']?'checked':'' ?>></td></tr><?php endforeach; ?></tbody></table></div><p><button class="btn btn-primary">Αποθήκευση ρυθμίσεων</button></p></form></section>
-<?php elseif($view==='import'): ?>
-<section class="card"><h2>Αναθέσεις MySchool</h2><p>Ανεβάστε την αναφορά «Αναθέσεις εκπαιδευτικών μονάδας» σε XLS ή XLSX. Το ΑΦΜ αγνοείται και το αρχικό αρχείο δεν διατηρείται. Εισάγονται αναθέσεις, όχι βαθμοί.</p>
-<form method="post" enctype="multipart/form-data" class="marks-inline-form"><?php $baseFields(); ?><input type="hidden" name="action" value="preview"><label>Αναφορά αναθέσεων <input type="file" name="assignments" accept=".xls,.xlsx" required></label><button class="btn btn-primary">Προεπισκόπηση</button></form></section>
-<?php $preview=$_SESSION['marks_import']??null;
-if(is_array($preview)&&$preview['year_id']===$yearId&&time()-$preview['created']<=1800): $matches=marksImportMatches($db,$preview); ?>
-<section class="card"><h2>Αντιστοιχίσεις</h2><p><?= count($preview['rows']) ?> γραμμές αναθέσεων. Επιβεβαιώστε τους λογαριασμούς και τα υπάρχοντα τμήματα. Για καθηγητές που λείπουν μπορείτε να δημιουργήσετε εκκρεμή λογαριασμό χωρίς κωδικό. Η πρόσβαση ενεργοποιείται χωριστά από τη διαχείριση καθηγητών, αφού οριστούν πραγματικά στοιχεία σύνδεσης.</p>
-<form method="post"><?php $baseFields(); ?><input type="hidden" name="action" value="commit_import"><input type="hidden" name="preview_token" value="<?= $h($preview['token']) ?>"><fieldset class="marks-fieldset"><legend>Πώς θέλετε να αντιμετωπιστούν οι χειροκίνητες αλλαγές αναθέσεων;</legend><label><input type="radio" name="assignment_policy" value="preserve" checked required> Διατήρηση χειροκίνητων αλλαγών</label><br><label><input type="radio" name="assignment_policy" value="replace" required> Αντικατάσταση από το MySchool</label><p class="marks-help">Η αντικατάσταση αφορά μόνο τα μαθήματα της αναφοράς: ανακαλεί τις προηγούμενες αναθέσεις τους και εφαρμόζει τις νέες. Η διατήρηση προστατεύει ολόκληρη τη σύνθεση καθηγητών των μαθημάτων που άλλαξαν χειροκίνητα. Βαθμοί και οριστικές υποβολές δεν αλλάζουν από την επιλογή αυτή.</p></fieldset>
-<div class="marks-table-wrap"><table class="marks-table marks-mapping"><caption>Καθηγητές</caption><thead><tr><th>Όνομα στην αναφορά</th><th>Υπάρχων λογαριασμός</th></tr></thead><tbody>
-<?php foreach($matches['teachers'] as $key=>$match): ?><tr><td><?= $h($match['name']) ?></td><td><select class="form-control" required name="teacher_map[<?= hash('sha256',$key) ?>]" aria-label="<?= $h('Λογαριασμός '.$match['name']) ?>"><option value="">Επιλέξτε λογαριασμό</option><option value="new" <?= $match['id']==='new'?'selected':'' ?>>Δημιουργία εκκρεμούς λογαριασμού από την αναφορά</option><?php foreach($matches['users'] as $u): ?><option value="<?= (int)$u['id'] ?>" <?= (string)$match['id']===(string)$u['id']?'selected':'' ?>><?= $h($u['name'].' · '.$u['email'].($u['status']==='inactive'?' · Ανενεργός':'')) ?></option><?php endforeach; ?></select></td></tr><?php endforeach; ?></tbody></table></div>
-<div class="marks-table-wrap"><table class="marks-table marks-mapping"><caption>Τμήματα</caption><thead><tr><th>Τμήμα στην αναφορά</th><th>Υπάρχον τμήμα</th></tr></thead><tbody>
-<?php foreach($matches['section_matches'] as $name=>$id): ?><tr><td><?= $h($name) ?></td><td><select class="form-control" required name="section_map[<?= hash('sha256',$name) ?>]" aria-label="<?= $h('Αντιστοίχιση τμήματος '.$name) ?>"><option value="">Επιλέξτε τμήμα</option><?php foreach($matches['sections'] as $s): ?><option value="<?= (int)$s['id'] ?>" <?= $id==$s['id']?'selected':'' ?>><?= $h($s['name']) ?></option><?php endforeach; ?></select></td></tr><?php endforeach; ?></tbody></table></div>
-<details><summary>Γραμμές της αναφοράς</summary><div class="marks-table-wrap"><table class="marks-table"><thead><tr><th>Καθηγητής</th><th>Τμήμα</th><th>Μάθημα</th><th>Ώρες</th><th>Ανάθεση</th></tr></thead><tbody><?php foreach($preview['rows'] as $r): ?><tr><?php foreach(['teacher_name','section','subject','hours','assignment'] as $key): ?><td><?= $h($r[$key]) ?></td><?php endforeach; ?></tr><?php endforeach; ?></tbody></table></div></details>
-<p class="marks-help">Οι υπάρχοντες βαθμοί διατηρούνται. Αναθέσεις που λείπουν από την αναφορά δεν απενεργοποιούνται αυτόματα. Οι αναθέσεις εφαρμόζονται σύμφωνα με την παραπάνω επιλογή. Αν αλλάζει λίστα μαθητών με οριστική υποβολή, απαιτείται πρώτα επανάνοιγμα.</p><button class="btn btn-primary">Επιβεβαίωση εισαγωγής αναθέσεων</button></form></section><?php endif; ?>
 <?php elseif($view==='manage'&&$admin): ?>
 <?php require __DIR__.'/marks_manage.php'; ?>
 <?php elseif(in_array($view,['entry','history'],true)): ?>

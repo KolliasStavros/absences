@@ -32,6 +32,7 @@ try {
     validateAttendanceSection($db, $sectionId, $yearId, $user);
     $read = $db->prepare('SELECT id,is_absent,absence_type,teacher_id,section_id,updated_at,note FROM attendance WHERE academic_year_id=? AND date=? AND student_id=? AND hour=? FOR UPDATE');
     $write = $db->prepare("INSERT INTO attendance (academic_year_id,date,hour,section_id,student_id,teacher_id,is_absent,absence_type) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE is_absent=VALUES(is_absent),absence_type=VALUES(absence_type),teacher_id=VALUES(teacher_id),section_id=VALUES(section_id),updated_at=NOW()");
+    $undoCapture=attendanceUndoCapture($db,$yearId,$date,array_column($changes,'student_id'));
     $seen = [];
     foreach ($changes as $change) {
         if (!is_array($change)) attendanceDenied($db,400,'Μη έγκυρη αλλαγή.');
@@ -48,6 +49,7 @@ try {
         if (!hash_equals(attendanceSlotVersion($existing),$change['version'])) attendanceDenied($db,409,'Μια καταχώρηση άλλαξε από άλλον χρήστη. Δεν αποθηκεύτηκε καμία αλλαγή. Ανανεώστε τα δεδομένα πριν συνεχίσετε.');
         $write->execute([$yearId,$date,$hour,$sectionId,$studentId,$user['id'],$status === 'present' ? 0 : 1,$status === 'present' ? 'absent' : $status]);
     }
+    attendanceUndoRecord($db,$undoCapture,$user);
     $db->commit();
     echo json_encode(['success'=>true,'saved_count'=>count($changes)]);
 } catch (Throwable $e) {

@@ -4,7 +4,7 @@ require_once __DIR__.'/lifecycle_restore.php';
 
 final class AbsencesLifecycle {
     use AbsencesRestore;
-    private const TABLES=['academic_years','absence_day_reasons','attendance_notes','attendance','grades','login_attempts','notification_logs','password_resets','reset_requests','student_sections','teacher_sections','sections','settings','smtp_accounts','students','users','subjects','course_offerings','course_teachers','assessment_periods','course_students','student_marks','mark_submissions','mark_audit_log','mark_teacher_aliases'];
+    private const TABLES=['academic_years','absence_day_reasons','attendance_notes','attendance','grades','login_attempts','notification_logs','password_resets','reset_requests','student_sections','teacher_sections','sections','settings','smtp_accounts','students','users','subjects','course_offerings','course_teachers','assessment_periods','course_students','student_marks','mark_submissions','mark_audit_log','mark_teacher_aliases','calendar_managers','school_calendar_events','calendar_event_readers','calendar_audit_log','attendance_edit_batches','attendance_edit_changes'];
     public static function privilegesFromGrants(array $grants, string $database): array {
         $supported=['SELECT','INSERT','UPDATE','DELETE','CREATE','ALTER','DROP','REFERENCES','INDEX','CREATE TEMPORARY TABLES','LOCK TABLES','CREATE VIEW','SHOW VIEW','CREATE ROUTINE','ALTER ROUTINE','EXECUTE','EVENT','TRIGGER'];
         $allowed=[];$denied=[];

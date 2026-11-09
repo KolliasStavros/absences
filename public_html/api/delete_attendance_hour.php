@@ -33,6 +33,8 @@ if ($date===null) schoolJsonResponse(['error'=>'Μη έγκυρη μορφή η�
 if ($sectionId===null || $hour===null) schoolJsonResponse(['error'=>'Μη έγκυρο τμήμα ή διδακτική ώρα'],400);
 
 $db = getDB();
+require_once __DIR__.'/../includes/teacher_assignments.php';
+$attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
 $activeYear = getActiveAcademicYear();
 $activeYearId = $activeYear ? (int)$activeYear['id'] : 1;
 $user = beginAttendanceMutation($db, $activeYearId);
@@ -40,7 +42,7 @@ validateAttendanceSection($db, $sectionId, $activeYearId, $user);
 
 // If user is ordinary teacher, verify assignment to section for active academic year
 if ($user['role'] === 'teacher') {
-    $stmtSec = $db->prepare("SELECT 1 FROM teacher_sections WHERE teacher_id = ? AND section_id = ? AND academic_year_id = ?");
+    $stmtSec = $db->prepare("SELECT 1 FROM {$attendanceAssignmentsSql} ta WHERE teacher_id = ? AND section_id = ? AND academic_year_id = ?");
     $stmtSec->execute([$user['id'], $sectionId, $activeYearId]);
     if (!$stmtSec->fetch()) {
         attendanceDenied($db, 403, 'Δεν έχετε ανάθεση σε αυτό το τμήμα για το τρέχον διδακτικό έτος.');
@@ -62,6 +64,7 @@ if (empty($existingRows)) {
     exit;
 }
 
+
 // Ownership check: If any row was recorded by another teacher and caller cannot manage all attendance
 if (!canManageAnyAttendance()) {
     $otherTeacherRows = array_filter($existingRows, function($r) use ($user) {
@@ -79,6 +82,7 @@ $justifiedRows = array_filter($existingRows, function($r) {
 
 try {
     // Transaction already holds the year mutation lock.
+    $undoCapture=attendanceUndoCapture($db,$activeYearId,$date,array_column($existingRows,'student_id'));
 
     if (!empty($justifiedRows) && !canJustifyAbsences()) {
         // If all existing rows are justified, block deletion
@@ -97,6 +101,7 @@ try {
         $stmtDelete->execute([$date, $hour, $sectionId, $activeYearId]);
         $deletedCount = $stmtDelete->rowCount();
 
+        attendanceUndoRecord($db,$undoCapture,$user);
         $db->commit();
         echo json_encode([
             'success' => true, 
@@ -113,6 +118,7 @@ try {
         $stmtDelete->execute([$date, $hour, $sectionId, $activeYearId]);
         $deletedCount = $stmtDelete->rowCount();
 
+        attendanceUndoRecord($db,$undoCapture,$user);
         $db->commit();
         echo json_encode([
             'success' => true, 

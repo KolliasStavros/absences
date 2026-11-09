@@ -1,3 +1,4 @@
+<?php require_once __DIR__.'/../includes/school_calendar_reminders.php'; ?>
     <nav class="app-navbar">
         <a href="index.php" class="nav-brand">
             <span>📋</span>
@@ -10,6 +11,7 @@
             </div>
         </a>
         <div class="nav-user">
+            <a href="calendar.php" class="btn <?= !empty($calendarNavigationActive) ? 'btn-primary' : 'btn-secondary' ?> btn-sm" <?= !empty($calendarNavigationActive) ? 'aria-current="page"' : '' ?>>📅 Ημερολόγιο<?= calendarReminderBadge(getDB(),$user,(int)$activeAcademicYear['id']) ?></a>
             <a href="marks.php" class="btn <?= !empty($marksNavigationActive) ? 'btn-primary' : 'btn-secondary' ?> btn-sm" <?= !empty($marksNavigationActive) ? 'aria-current="page"' : '' ?>>📚 Βαθμολογία</a>
             <button type="button" class="theme-toggle-btn" onclick="toggleSchoolTheme()" title="Εναλλαγή Θέματος">
                 🌙 <span class="theme-toggle-text" style="font-size:12px; font-weight:600;">Σκοτεινό</span>
@@ -40,3 +42,4 @@
             <?= logoutForm('btn btn-secondary btn-sm nav-logout-btn') ?>
         </div>
     </nav>
+
