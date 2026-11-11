@@ -2612,7 +2612,10 @@ document.addEventListener('keydown', function(e) {
             clearTimeout(requestTimeout);
             livePollInFlight = false;
             if (liveRetryButton) liveRetryButton.disabled = false;
-            livePollTimer = setTimeout(pollAttendanceUpdates, pollInterval);
+            // Aborting fetch does not guarantee that PHP stopped on the server.
+            // Back off after failures rather than queuing more expensive requests.
+            const retryDelay = liveFailures ? Math.min(60000, pollInterval * (2 ** Math.min(liveFailures, 5))) : pollInterval;
+            if (isLiveActive) livePollTimer = setTimeout(pollAttendanceUpdates, retryDelay);
         }
     }
 

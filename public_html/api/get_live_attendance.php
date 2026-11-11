@@ -7,11 +7,15 @@ header('Cache-Control: no-store, private');
 
 $user = requireApiLogin();
 
-if (!canManageAnyAttendance()) {
+if (!in_array($user['role'], ['admin', 'teacher_admin'], true)) {
     http_response_code(403);
     echo json_encode(['error' => 'Δεν έχετε δικαίωμα πρόσβασης στα ζωντανά δεδομένα απουσιών']);
     exit;
 }
+
+// Authentication activity has been persisted. Read-only polling must not hold
+// the session lock while database queries run (or block navigation/login).
+if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
 $db = getDB();
 require_once __DIR__.'/../includes/co_teaching.php';

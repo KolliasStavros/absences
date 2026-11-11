@@ -15,3 +15,13 @@ body>.calendar-reminders{max-width:1360px;width:calc(100% - 32px);margin:16px au
 [data-theme="dark"] .cal-status.cal-status-completed{color:#4ade80}[data-theme="dark"] .cal-status.cal-status-pending{color:#f87171}
 
 [data-theme="dark"] .cal-status.cal-status-planned{color:#60a5fa}
+
+.school-calendar{--cal-weekend-bg:#eff6ff;--cal-holiday-bg:#fff3df;--cal-holiday-text:#92400e}
+[data-theme="dark"] .school-calendar{--cal-weekend-bg:#172b43;--cal-holiday-bg:#392c1c;--cal-holiday-text:#fcd38d}
+.cal-day.cal-weekend{background:var(--cal-weekend-bg)}
+.cal-day.cal-holiday{background:var(--cal-holiday-bg)}
+.cal-holiday-label{font-size:11px;line-height:1.4;color:var(--cal-holiday-text);font-weight:600;margin:0 0 7px;overflow-wrap:anywhere}
+.cal-day-legend{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px;font-size:12px;color:var(--text-main)}
+.cal-day-legend span{padding:5px 9px;border-radius:6px;border:1px solid var(--border)}
+.cal-legend-weekend{background:var(--cal-weekend-bg)}
+.cal-legend-holiday{background:var(--cal-holiday-bg);color:var(--cal-holiday-text)}

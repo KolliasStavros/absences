@@ -1,6 +1,7 @@
 <?php
 // SPDX-License-Identifier: GPL-3.0-only
 require_once __DIR__.'/school_calendar.php';
+require_once __DIR__.'/school_calendar_holidays.php';
 $db=getDB(); $user=getCurrentUser(); $activeAcademicYear=getActiveAcademicYear();
 $schoolName=getSchoolSetting('school_name','Σχολείο'); $pageTitle='Ημερολόγιο σχολείου';
 $h=static fn($s)=>htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');
@@ -64,7 +65,7 @@ if($calendarAdminLayout) { require __DIR__.'/../admin/header.php'; }
 else { $calendarNavigationActive=true; ?>
 <!DOCTYPE html><html lang="el"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ημερολόγιο σχολείου · <?= $h($schoolName) ?></title><link rel="stylesheet" href="../assets/css/style.css?v=daylight-20261029-1"><script src="../assets/js/theme.js?v=20261029-1"></script><?php require __DIR__.'/diagnostics_client.php'; ?></head><body>
 <?php require __DIR__.'/../teacher/navbar.php'; ?><div class="main-container"><?php } ?>
-<link rel="stylesheet" href="../assets/css/school-calendar.css?v=5">
+<link rel="stylesheet" href="../assets/css/school-calendar.css?v=6">
 <script src="../assets/js/school-calendar.js?v=5" defer></script>
 <link rel="stylesheet" href="../assets/css/school-calendar-print.css?v=2">
 <script src="../assets/js/school-calendar-print.js?v=2" defer></script>
@@ -78,10 +79,10 @@ else { $calendarNavigationActive=true; ?>
 <?php if($yearId!==(int)$activeAcademicYear['id']): ?><p class="cal-notice">Αρχείο προηγούμενου σχολικού έτους · μόνο ανάγνωση.</p><?php endif; ?>
 <?php if($view==='month'): ?>
 <section class="card"><div class="cal-month-title"><a class="btn btn-secondary" aria-label="Προηγούμενος μήνας" href="<?= $h($url(['month'=>$first->modify('-1 month')->format('Y-m')])) ?>">‹</a><h2><?= $h($monthNames[(int)$first->format('n')].' '.$first->format('Y')) ?></h2><a class="btn btn-secondary" aria-label="Επόμενος μήνας" href="<?= $h($url(['month'=>$first->modify('+1 month')->format('Y-m')])) ?>">›</a><a href="<?= $h($url(['month'=>date('Y-m')])) ?>">Σήμερα</a></div>
-<div class="cal-scroll"><div class="cal-grid"><?php foreach(['Δευ','Τρι','Τετ','Πέμ','Παρ','Σάβ','Κυρ'] as $day): ?><div class="cal-weekday"><?= $day ?></div><?php endforeach; ?>
+<div class="cal-day-legend"><span class="cal-legend-weekend">Σαββατοκύριακο</span><span class="cal-legend-holiday">Σχολική αργία / διακοπές 2026–2027</span></div><div class="cal-scroll"><div class="cal-grid"><?php foreach(['Δευ','Τρι','Τετ','Πέμ','Παρ','Σάβ','Κυρ'] as $day): ?><div class="cal-weekday"><?= $day ?></div><?php endforeach; ?>
 <?php for($i=1;$i<(int)$first->format('N');$i++): ?><div class="cal-day cal-blank" aria-hidden="true"></div><?php endfor; ?>
-<?php for($d=1;$d<=(int)$last->format('j');$d++): $date=$month.'-'.str_pad((string)$d,2,'0',STR_PAD_LEFT); ?>
-<div class="cal-day <?= $date===date('Y-m-d')?'cal-today':'' ?>"><div class="cal-day-heading"><strong class="cal-day-number"><?= $d ?></strong><?php if($editable): ?><a class="cal-day-add" data-calendar-modal href="<?= $h($url(['view'=>'edit','event'=>null,'date'=>$date])) ?>" aria-label="<?= $h('Νέα καταχώριση στις '.$dateLabel($date)) ?>" title="Νέα καταχώριση">+</a><?php endif; ?></div><?php foreach($events as $item): if($item['start_date']>$date||$item['end_date']<$date) continue; ?><a class="cal-event cal-<?= $h($item['category']) ?> <?= $item['status']==='cancelled'?'cal-cancelled':'' ?>" href="<?= $h($url(['view'=>'detail','event'=>$item['id']])) ?>"><?php if($item['start_time']&&$item['start_date']===$date): ?><small><?= $h(substr($item['start_time'],0,5)) ?></small> <?php endif; ?><?= $h($item['title']) ?><small class="cal-status cal-status-<?= $h($item['status']) ?>"><?= $h(calendarStatuses()[$item['status']]) ?></small></a><?php endforeach; ?></div>
+<?php for($d=1;$d<=(int)$last->format('j');$d++): $date=$month.'-'.str_pad((string)$d,2,'0',STR_PAD_LEFT); $holiday=calendarSchoolHoliday($date); $weekend=(int)(new DateTimeImmutable($date))->format('N')>=6; ?>
+<div class="cal-day <?= $date===date('Y-m-d')?'cal-today ':'' ?><?= $weekend?'cal-weekend ':'' ?><?= $holiday?'cal-holiday':'' ?>"><div class="cal-day-heading"><strong class="cal-day-number"><?= $d ?></strong><?php if($editable): ?><a class="cal-day-add" data-calendar-modal href="<?= $h($url(['view'=>'edit','event'=>null,'date'=>$date])) ?>" aria-label="<?= $h('Νέα καταχώριση στις '.$dateLabel($date)) ?>" title="Νέα καταχώριση">+</a><?php endif; ?></div><?php if($holiday): ?><div class="cal-holiday-label"><?= $h($holiday) ?></div><?php endif; ?><?php foreach($events as $item): if($item['start_date']>$date||$item['end_date']<$date) continue; ?><a class="cal-event cal-<?= $h($item['category']) ?> <?= $item['status']==='cancelled'?'cal-cancelled':'' ?>" href="<?= $h($url(['view'=>'detail','event'=>$item['id']])) ?>"><?php if($item['start_time']&&$item['start_date']===$date): ?><small><?= $h(substr($item['start_time'],0,5)) ?></small> <?php endif; ?><?= $h($item['title']) ?><small class="cal-status cal-status-<?= $h($item['status']) ?>"><?= $h(calendarStatuses()[$item['status']]) ?></small></a><?php endforeach; ?></div>
 <?php endfor; ?></div></div><?php if(!$events): ?><p class="cal-empty">Δεν υπάρχουν καταχωρίσεις με αυτά τα φίλτρα.</p><?php endif; ?></section>
 <?php elseif($view==='agenda'): ?>
 <section class="card"><h2>Προσεχώς / Εκκρεμότητες</h2><p class="cal-muted">Προγραμματισμένα από σήμερα και ανοιχτές εργασίες ή εκκρεμότητες, ακόμη και αν πέρασε η προθεσμία τους. Η λίστα αφορά όλο το επιλεγμένο σχολικό έτος.</p><?php if(!$events): ?><p class="cal-empty">Δεν υπάρχουν προσεχείς καταχωρίσεις ή ανοιχτές εκκρεμότητες.</p><?php endif; ?>
