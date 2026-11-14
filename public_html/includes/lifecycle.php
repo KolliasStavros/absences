@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__.'/lifecycle_guard.php';
 require_once __DIR__.'/lifecycle_restore.php';
+require_once __DIR__.'/teacher_registry_migration.php';
+require_once __DIR__.'/lifecycle_portable_recovery.php';
 
 final class AbsencesLifecycle {
-    use AbsencesRestore;
+    use AbsencesRestore, AbsencesPortableRecovery;
     private const TABLES=['academic_years','absence_day_reasons','attendance_notes','attendance','grades','login_attempts','notification_logs','password_resets','reset_requests','student_sections','teacher_sections','sections','settings','smtp_accounts','students','users','subjects','course_offerings','course_teachers','assessment_periods','course_students','student_marks','mark_submissions','mark_audit_log','mark_teacher_aliases','calendar_managers','school_calendar_events','calendar_event_readers','calendar_audit_log','attendance_edit_batches','attendance_edit_changes'];
     public static function privilegesFromGrants(array $grants, string $database): array {
         $supported=['SELECT','INSERT','UPDATE','DELETE','CREATE','ALTER','DROP','REFERENCES','INDEX','CREATE TEMPORARY TABLES','LOCK TABLES','CREATE VIEW','SHOW VIEW','CREATE ROUTINE','ALTER ROUTINE','EXECUTE','EVENT','TRIGGER'];
@@ -187,15 +189,18 @@ final class AbsencesLifecycle {
     }
     private function updatePath(string $path): string {
         $target=$this->checkedPath($path);
-        if (preg_match('~^(config|release|scratch|tests|\.git|\.codex|\.agents|\.aws)(/|$)~i',$path) || in_array(strtolower($path),['.htaccess','install.php','includes/lifecycle.php','includes/lifecycle_guard.php','includes/lifecycle_restore.php','admin/maintenance.php','bin/restore_backup.php'],true)) throw new DomainException('Το πακέτο επιχειρεί να αλλάξει προστατευμένα αρχεία εγκατάστασης ή συντήρησης.');
+        if (preg_match('~^(config|release|scratch|tests|\.git|\.codex|\.agents|\.aws)(/|$)~i',$path) || in_array(strtolower($path),['.htaccess','install.php','includes/lifecycle.php','includes/lifecycle_guard.php','includes/lifecycle_restore.php','includes/lifecycle_portable_recovery.php','includes/portable_recovery.php','includes/teacher_registry_migration.php','admin/maintenance.php','bin/restore_backup.php'],true)) throw new DomainException('Το πακέτο επιχειρεί να αλλάξει προστατευμένα αρχεία εγκατάστασης ή συντήρησης.');
         return $target;
     }
     private function migrationPreflight(string $sql, array $declared=[]): void {
+        if(trim($sql)==='-- ABSENCES MAINTENANCE 1.4.0 REQUIRED')return;
         [$start,$operation,$table]=$this->migrationStatement($sql);
         $known=array_unique(array_merge($this->managedTables(),$declared));
         if(!in_array($table,array_map(fn($t)=>$this->prefix.$t,$known),true))throw new DomainException('Η μεταβολή βάσης αφορά μη καταγεγραμμένο πίνακα. Απαιτείται έλεγχος ιδιοκτησίας.');
         $clean=preg_replace("~'(?:''|\\\\.|[^'\\\\])*'|\"(?:\"\"|\\\\.|[^\"\\\\])*\"|/\\*.*?\\*/|--[^\\r\\n]*|\\#[^\\r\\n]*~s",'',$start);
         if(str_contains(rtrim($clean,"; \t\r\n"),';'))throw new DomainException('Κάθε αρχείο μεταβολής πρέπει να περιέχει μία μόνο εντολή SQL.');
+        $plan=teacherRegistryMigrationPlan($this->db,$this->prefix.'users',str_replace('{{prefix}}',$this->prefix,$sql));
+        if($plan===[])return;
         $needed=strtok($operation,' ');
         if(in_array($needed,$this->databasePrivileges(),true))return;
         throw new DomainException('Δεν επιβεβαιώθηκε δικαίωμα βάσης για τη μεταβολή '.$needed.'. Δείτε τον Διαγνωστικό έλεγχο βάσης στη σελίδα συντήρησης.');
@@ -364,7 +369,12 @@ final class AbsencesLifecycle {
                 // Persist ownership only after confirmation and a verified backup, before any DDL.
                 // Keep it on DDL failure so recovery can still recognize partially created tables.
                 $this->registerTables($m['new_tables']??[]);
-                foreach(($m['migrations']??[]) as $path=>$hash){$databaseStarted=true;$sql=$zip->getFromName('sql/'.$path);$this->db->exec(str_replace('{{prefix}}',$this->prefix,$sql));}
+                foreach(($m['migrations']??[]) as $path=>$hash){
+                    $sql=str_replace('{{prefix}}',$this->prefix,$zip->getFromName('sql/'.$path));
+                    if(trim($sql)==='-- ABSENCES MAINTENANCE 1.4.0 REQUIRED')continue;
+                    $plan=teacherRegistryMigrationPlan($this->db,$this->prefix.'users',$sql);
+                    foreach($plan??[$sql] as $statement){$databaseStarted=true;$this->db->exec($statement);}
+                }
                 foreach(($m['files']??[]) as $path=>$hash){$file=$this->updatePath($path);$touched[$path]=is_file($file);$this->atomicFile($file,$zip->getFromName('files/'.$path));if(!hash_equals($hash,hash_file('sha256',$file)))throw new RuntimeException('Αποτυχία επαλήθευσης νέου αρχείου.');}
                 foreach(($m['delete']??[]) as $path){$file=$this->updatePath($path);if(is_file($file)){$touched[$path]=true;if(!unlink($file))throw new RuntimeException('Δεν αφαιρέθηκε παλιό αρχείο.');}}
             }finally{$zip->close();}

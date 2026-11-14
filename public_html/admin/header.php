@@ -15,7 +15,7 @@ $activeAcademicYear = getActiveAcademicYear();
 require_once __DIR__.'/../includes/school_calendar_reminders.php';
 
 // Restrict system management pages from teacher_admin
-$adminOnlyPages = ['settings.php', 'import.php', 'myschool_import.php', 'teachers.php', 'sections.php', 'students.php', 'logs.php', 'maintenance.php', 'technical_errors.php'];
+$adminOnlyPages = ['settings.php', 'import.php', 'myschool_import.php', 'teachers.php', 'sections.php', 'students.php', 'logs.php', 'maintenance.php', 'portable_recovery.php', 'academic_years.php', 'technical_errors.php'];
 if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
     header("Location: " . BASE_URL . "/admin/index.php");
     exit;
@@ -37,7 +37,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css?v=daylight-20261029-1">
+    <link rel="stylesheet" href="../assets/css/style.css?v=shared-ui-20261115-1">
     <?php require __DIR__.'/../includes/diagnostics_client.php'; ?>
     <script src="../assets/js/theme.js?v=20261029-1"></script>
     <script src="../assets/js/admin-ui.js?v=import-1" defer></script>
@@ -86,7 +86,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                 🌙 <span style="font-size:12px; font-weight:600;">Σκοτεινό</span>
             </button>
             <?php if (isAdmin()): ?>
-                <a href="settings.php" class="badge badge-success" style="font-size:12px; padding:6px 11px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; border:1px solid #86efac; transition:all 0.2s;" title="Ενεργό Σχολικό Έτος (Κλικ για διαχείριση/αλλαγή στις Ρυθμίσεις)">
+                <a href="academic_years.php" class="badge badge-success" style="font-size:12px; padding:6px 11px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; border:1px solid #86efac; transition:all 0.2s;" title="Διαχείριση σχολικών ετών">
                     📅 Έτος: <strong><?= htmlspecialchars($activeAcademicYear['name'] ?? '2026-2027') ?></strong>
                 </a>
             <?php else: ?>
@@ -122,8 +122,8 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
 
             <?php if (isAdmin()): ?>
                 <?php 
-                    $isSchoolDataActive = in_array($currentPage, ['students.php', 'sections.php', 'teachers.php', 'import.php', 'myschool_import.php']);
-                    $isToolsActive = in_array($currentPage, ['logs.php', 'settings.php', 'help.php', 'maintenance.php', 'technical_errors.php', 'prints.php']);
+                    $isSchoolDataActive = in_array($currentPage, ['students.php', 'sections.php', 'teachers.php', 'import.php', 'myschool_import.php', 'academic_years.php']);
+                    $isToolsActive = in_array($currentPage, ['logs.php', 'settings.php', 'help.php', 'maintenance.php', 'portable_recovery.php', 'technical_errors.php', 'prints.php']);
                 ?>
                 <!-- Dropdown: Δεδομένα Σχολείου -->
                 <div class="nav-dropdown <?= $isSchoolDataActive ? 'active' : '' ?>">
@@ -133,6 +133,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                     </button>
                     <div class="nav-dropdown-menu">
                         <a href="myschool_import.php" class="nav-dropdown-item <?= $currentPage === 'myschool_import.php' ? 'active' : '' ?>"><span class="item-icon">📥</span><span class="item-text"><strong>Εισαγωγή MySchool</strong><small>Μαθητές, μητρώο καθηγητών &amp; αναθέσεις</small></span></a>
+                        <a href="academic_years.php" class="nav-dropdown-item <?= $currentPage === 'academic_years.php' ? 'active' : '' ?>"><span class="item-icon">📅</span><span class="item-text"><strong>Σχολικά έτη</strong><small>Νέο έτος, ιστορικό &amp; αντίγραφα</small></span></a>
                         <a href="teachers.php" class="nav-dropdown-item <?= $currentPage === 'teachers.php' ? 'active' : '' ?>">
                             <span class="item-icon">👥</span>
                             <span class="item-text">
@@ -168,7 +169,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                             <span class="item-icon">⚙️</span>
                             <span class="item-text">
                                 <strong>Ρυθμίσεις &amp; Email</strong>
-                                <small>Σχολείο, SMTP, έτη &amp; όρια</small>
+                                <small>Σχολείο, SMTP &amp; όρια</small>
                             </span>
                         </a>
                         <a href="prints.php" class="nav-dropdown-item <?= $currentPage === 'prints.php' ? 'active' : '' ?>"><span class="item-icon">🖨️</span><span class="item-text"><strong>Εκτυπώσεις</strong><small>Έντυπα και αιτήσεις</small></span></a>
@@ -180,6 +181,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                             </span>
                         </a>
                         <a href="maintenance.php" class="nav-dropdown-item <?= $currentPage === 'maintenance.php' ? 'active' : '' ?>"><span class="item-icon">🔧</span><span class="item-text"><strong>Ενημερώσεις &amp; Απεγκατάσταση</strong><small>Έλεγχοι, αντίγραφα &amp; συντήρηση</small></span></a>
+                        <a href="portable_recovery.php" class="nav-dropdown-item <?= $currentPage === 'portable_recovery.php' ? 'active' : '' ?>"><span class="item-icon">📦</span><span class="item-text"><strong>Ανάκτηση σε νέα εγκατάσταση</strong><small>Μεταφορά σχολικών δεδομένων</small></span></a>
                         <a href="technical_errors.php" class="nav-dropdown-item <?= $currentPage === 'technical_errors.php' ? 'active' : '' ?>"><span class="item-icon">🛠️</span><span class="item-text"><strong>Τεχνικά σφάλματα</strong><small>Καταγραφή &amp; διάγνωση</small></span></a>
                         <div class="dropdown-divider"></div>
                         <a href="help.php" class="nav-dropdown-item <?= $currentPage === 'help.php' ? 'active' : '' ?>">
@@ -202,4 +204,8 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                 <span style="font-size:11px; opacity:0.85;">&nearr;</span>
             </a>
         </div>
+
+        <?php if ((int)$activeAcademicYear['is_active']!==1 || academicYearClosed(getDB(),(int)$activeAcademicYear['id'])): ?>
+        <div class="alert alert-warning" role="status">Προβολή ιστορικού <strong><?= htmlspecialchars($activeAcademicYear['name'],ENT_QUOTES,'UTF-8') ?></strong> — οι καταχωρίσεις και οι αποστολές είναι απενεργοποιημένες. <a href="academic_years.php">Επιστροφή στο ενεργό έτος</a></div>
+        <?php endif; ?>
 

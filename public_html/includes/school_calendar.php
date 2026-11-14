@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/academic_year_state.php';
 // SPDX-License-Identifier: GPL-3.0-only
 require_once __DIR__.'/request_validation.php';
 
@@ -82,8 +83,7 @@ function calendarAudit(PDO $db,?int $event,int $actor,string $action,array $deta
 }
 // Serialize edits, permission changes and school-year switches in year -> actor -> event order.
 function calendarWriteLock(PDO $db,int $year,array $user,bool $adminOnly=false): void {
-    $q=$db->prepare('SELECT id FROM academic_years WHERE id=? AND is_active=1 FOR UPDATE'); $q->execute([$year]);
-    if(!$q->fetchColumn()) throw new DomainException('Το ενεργό σχολικό έτος άλλαξε. Ανανεώστε τη σελίδα.');
+    academicYearAssertWritable($db,$year);
     $q=$db->prepare("SELECT id,role FROM users WHERE id=? AND status='active' FOR UPDATE"); $q->execute([$user['id']]); $actor=$q->fetch(PDO::FETCH_ASSOC);
     if(!$actor||($adminOnly?$actor['role']!=='admin':!calendarCanManage($db,$actor))) throw new DomainException('Δεν έχετε δικαίωμα διαχείρισης ημερολογίου.');
 }

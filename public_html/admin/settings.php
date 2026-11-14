@@ -332,42 +332,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_sms_balance']))
         }
     }
 
-    // 7. Handle Academic Year: Switch Active Year
-    if (isset($_POST['switch_academic_year'])) {
-        $targetYearId = (int)$_POST['academic_year_id'];
-        if (setActiveAcademicYear($targetYearId)) {
-            $message = 'Το ενεργό διδακτικό έτος άλλαξε επιτυχώς!';
-        } else {
-            $error = 'Σφάλμα κατά την αλλαγή του ενεργού διδακτικού έτους.';
-        }
+    if(isset($_POST['switch_academic_year'])||isset($_POST['create_academic_year'])||isset($_POST['delete_academic_year'])) {
+        $error='Η διαχείριση ετών μεταφέρθηκε στα Δεδομένα Σχολείου → Σχολικά έτη.';
     }
 
-    // 8. Handle Academic Year: Create New Year
-    if (isset($_POST['create_academic_year'])) {
-        $yearName = trim($_POST['year_name'] ?? '');
-        $setAsActive = !empty($_POST['set_as_active']);
-        if (empty($yearName)) {
-            $error = 'Παρακαλώ εισάγετε ονομασία για το διδακτικό έτος (π.χ. 2027-2028).';
-        } else {
-            $newId = createAcademicYear($yearName, $setAsActive);
-            if ($newId) {
-                $message = "Το νέο διδακτικό έτος '{$yearName}' δημιουργήθηκε επιτυχώς" . ($setAsActive ? ' και ορίστηκε ως ενεργό! Η νέα σχολική χρονιά ξεκινά με κενή βάση δεδομένων (0 μαθητές, 0 απουσίες).' : '!');
-            } else {
-                $error = "Υπάρχει ήδη διδακτικό έτος με την ονομασία '{$yearName}' ή σημειώθηκε σφάλμα.";
-            }
-        }
-    }
-
-    // 9. Handle Academic Year: Delete Inactive Year
-    if (isset($_POST['delete_academic_year'])) {
-        $delYearId = (int)$_POST['academic_year_id'];
-        $delRes = deleteAcademicYear($delYearId);
-        if ($delRes['success']) {
-            $message = 'Το διδακτικό έτος διαγράφηκε επιτυχώς.';
-        } else {
-            $error = 'Αποτυχία διαγραφής: ' . $delRes['error'];
-        }
-    }
 }
 }
 
@@ -403,7 +371,7 @@ $activeAcademicYear = getActiveAcademicYear();
 $allAcademicYears = getAllAcademicYearsWithStats();
 ?>
 
-<nav aria-label="Καρτέλες ρυθμίσεων" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:12px">
+<nav class="app-tabs" aria-label="Καρτέλες ρυθμίσεων">
     <a href="settings.php" class="btn <?= !$emailTemplatesTab ? 'btn-primary' : 'btn-secondary' ?>" <?= !$emailTemplatesTab ? 'aria-current="page"' : '' ?>>Ρυθμίσεις &amp; Email</a>
     <a href="settings.php?tab=email-templates" class="btn <?= $emailTemplatesTab ? 'btn-primary' : 'btn-secondary' ?>" <?= $emailTemplatesTab ? 'aria-current="page"' : '' ?>>Πρότυπα Email</a>
 </nav>
@@ -472,7 +440,7 @@ $allAcademicYears = getAllAcademicYearsWithStats();
 
         <?php else: ?>
         <div class="card email-template-settings">
-            <link rel="stylesheet" href="../assets/css/email-template-settings.css?v=1">
+            <link rel="stylesheet" href="../assets/css/email-template-settings.css?v=shared-ui-20261115-1">
             <details class="email-template-group"><summary>Πρότυπο ημερήσιων απουσιών</summary><div class="email-template-group-body">
             <div class="form-group">
                 <label>Θέμα Email (Subject)</label>
@@ -615,125 +583,7 @@ $allAcademicYears = getAllAcademicYearsWithStats();
 
 
 
-<!-- 3. Academic Year Management Section -->
-<div class="card" style="margin-bottom:28px; border-left: 4px solid var(--primary);">
-    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <span style="font-size:20px;">📅</span>
-            <div>
-                <span style="font-size:18px; font-weight:700;">Διαχείριση Διδακτικού Έτους (Σχολική Χρονιά)</span>
-                <div style="font-size:12px; color:var(--text-muted); font-weight:normal;">
-                    Τρέχον Ενεργό Έτος: <strong style="color:var(--primary); font-size:13px;"><?= htmlspecialchars($activeAcademicYear['name'] ?? 'Μη ορισμένο') ?></strong>
-                </div>
-            </div>
-        </div>
-        <div style="display:flex; gap:10px; align-items:center;">
-            <span class="badge badge-success" style="font-size:13px; padding:6px 12px;">
-                🌟 Ενεργό: <?= htmlspecialchars($activeAcademicYear['name'] ?? '-') ?>
-            </span>
-        </div>
-    </div>
-
-    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:13px; color:#1e40af; line-height:1.5;">
-        💡 <strong>Πώς λειτουργεί η νέα σχολική χρονιά:</strong> Όταν αλλάζει η διδακτική χρονιά, δημιουργείτε το νέο έτος (π.χ. <code>2027-2028</code>) και το ορίζετε ως ενεργό. Η νέα χρονιά ξεκινά αυτόματα με <strong>κενή βάση δεδομένων για μαθητές και απουσίες</strong>, έτοιμη να δεχτεί το νέο αρχείο MySchool. <strong>Τα δεδομένα της παλιάς σχολικής χρονιάς διατηρούνται πλήρως</strong> και μπορείτε ανά πάσα στιγμή να επιστρέψετε σε αυτήν από τον παρακάτω πίνακα!
-    </div>
-
-    <!-- Create New Year Form -->
-    <div class="settings-panel" style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:24px;">
-        <h4 style="margin:0 0 12px 0; font-size:15px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:8px;">
-            <span>➕</span> Δημιουργία Νέου Διδακτικού Έτους
-        </h4>
-        <form method="POST" action="settings.php" style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap;">
-            <?= csrfField() ?>
-            <div style="flex:1; min-width:220px;">
-                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">
-                    Ονομασία Έτους:
-                </label>
-                <input type="text" name="year_name" class="form-control" placeholder="π.χ. 2027-2028" required style="font-weight:600;">
-            </div>
-            <div style="padding-bottom:10px;">
-                <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer;">
-                    <input type="checkbox" name="set_as_active" value="1" checked style="width:16px; height:16px;">
-                    Ορισμός ως τρέχον ενεργό έτος αμέσως
-                </label>
-            </div>
-            <div>
-                <button type="submit" name="create_academic_year" class="btn btn-primary" style="font-weight:700;">
-                    ✨ Δημιουργία Έτους
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Table of Academic Years -->
-    <h4 style="margin:0 0 12px 0; font-size:15px; font-weight:700; color:var(--text-main);">
-        📚 Ιστορικό &amp; Διαθέσιμα Διδακτικά Έτη
-    </h4>
-    <div class="table-responsive">
-        <table class="table" style="font-size:13px;">
-            <thead>
-                <tr>
-                    <th>Διδακτικό Έτος</th>
-                    <th>Κατάσταση</th>
-                    <th style="text-align:center;">Εγγεγραμμένοι Μαθητές</th>
-                    <th style="text-align:center;">Καταχωρημένες Απουσίες</th>
-                    <th>Ημερομηνία Δημιουργίας</th>
-                    <th style="text-align:right;">Ενέργειες</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($allAcademicYears as $ay): ?>
-                    <tr style="<?= $ay['is_active'] ? 'background:#f0fdf4; font-weight:600;' : '' ?>">
-                        <td>
-                            <span style="font-size:14px;"><?= htmlspecialchars($ay['name']) ?></span>
-                            <?php if ($ay['is_active']): ?>
-                                <span class="badge badge-success" style="margin-left:6px;">Τρέχον Έτος</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php if ($ay['is_active']): ?>
-                                <span class="badge badge-success">Ενεργό</span>
-                            <?php else: ?>
-                                <span class="badge badge-gray">Ανενεργό</span>
-                            <?php endif; ?>
-                        </td>
-                        <td style="text-align:center;">
-                            <span class="badge badge-info" style="font-size:12px;"><?= number_format($ay['students_count']) ?> μαθητές</span>
-                        </td>
-                        <td style="text-align:center;">
-                            <span class="badge badge-warning" style="font-size:12px;"><?= number_format($ay['attendance_count']) ?> απουσίες</span>
-                        </td>
-                        <td style="color:var(--text-muted); font-size:12px;">
-                            <?= date('d/m/Y H:i', strtotime($ay['created_at'])) ?>
-                        </td>
-                        <td style="text-align:right;">
-                            <?php if (!$ay['is_active']): ?>
-                                <form method="POST" action="settings.php" style="display:inline; margin-right:6px;">
-                                    <?= csrfField() ?>
-                                    <input type="hidden" name="academic_year_id" value="<?= $ay['id'] ?>">
-                                    <button type="submit" name="switch_academic_year" class="btn btn-secondary btn-sm" title="Ενεργοποίηση αυτού του διδακτικού έτους">
-                                        🔄 Ενεργοποίηση
-                                    </button>
-                                </form>
-                                <form method="POST" action="settings.php" style="display:inline;" onsubmit="return confirm('ΠΡΟΣΟΧΗ: Θα διαγραφούν οριστικά οι μαθητές και οι απουσίες του έτους <?= htmlspecialchars($ay['name']) ?>. Είστε απόλυτα βέβαιοι;');">
-                                    <?= csrfField() ?>
-                                    <input type="hidden" name="academic_year_id" value="<?= $ay['id'] ?>">
-                                    <button type="submit" name="delete_academic_year" class="btn btn-danger btn-sm" title="Οριστική διαγραφή έτους">
-                                        🗑️ Διαγραφή
-                                    </button>
-                                </form>
-                            <?php else: ?>
-                                <span style="font-size:12px; color:#166534; font-weight:700;">
-                                    ✓ Σε χρήση
-                                </span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+<div class="card" style="margin-bottom:28px"><h2 class="card-title">📅 Σχολικά έτη</h2><p>Δημιουργία νέου έτους, προβολή ιστορικού, κλείσιμο, backup και επαναφορά.</p><a class="btn btn-secondary" href="academic_years.php">Διαχείριση σχολικών ετών</a></div>
 
 <!-- 3. SMS Gateway Settings Section -->
 <div class="card" id="sms-gateway" style="margin-bottom:28px; border-left: 4px solid #0284c7;">

@@ -1,8 +1,10 @@
 /* Modern Design System for School Absences Web Application */
+@import url('./theme-tokens.css?v=20261115-1');
+@import url('./shared-surfaces.css?v=20261115-1');
 :root {
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --primary-light: #eef2ff;
+    --primary: var(--ui-accent);
+    --primary-hover: var(--ui-accent-hover);
+    --primary-light: var(--ui-accent-soft);
     --success: #10b981;
     --success-light: #ecfdf5;
     --danger: #ef4444;
@@ -12,14 +14,14 @@
     --info: #0284c7;
     --info-light: #f0f9ff;
     
-    --bg-main: #f8fafc;
-    --bg-card: #ffffff;
-    --text-main: #1e293b;
-    --text-muted: #475569;
-    --border: #cbd5e1;
+    --bg-main: var(--ui-page-bg);
+    --bg-card: var(--ui-panel-bg);
+    --text-main: var(--ui-text);
+    --text-muted: var(--ui-muted);
+    --border: var(--ui-border);
     
-    --radius-sm: 8px;
-    --radius-md: 12px;
+    --radius-sm: var(--ui-control-radius);
+    --radius-md: var(--ui-panel-radius);
     --radius-lg: 16px;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -138,12 +140,12 @@ body {
 }
 
 .btn-primary {
-    background: var(--primary);
-    color: #fff;
+    background: var(--ui-button-bg);
+    color: var(--ui-button-text);
 }
 
 .btn-primary:hover {
-    background: var(--primary-hover);
+    background: var(--ui-button-hover);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
@@ -797,12 +799,12 @@ body {
    Dark Mode Theme System
    ========================================================================== */
 [data-theme="dark"] {
-    --bg-main: #0b1120;
-    --bg-card: #1e293b;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --border: #334155;
-    --primary-light: #312e81;
+    --bg-main: var(--ui-page-bg);
+    --bg-card: var(--ui-panel-bg);
+    --text-main: var(--ui-text);
+    --text-muted: var(--ui-muted);
+    --border: var(--ui-border);
+    --primary-light: var(--ui-accent-soft);
     --success-light: #064e3b;
     --danger-light: #7f1d1d;
     --warning-light: #78350f;

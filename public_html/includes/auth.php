@@ -377,3 +377,6 @@ function completePasswordReset($token, $newPassword) {
         return ['success'=>true,'message'=>'Ο κωδικός ορίστηκε επιτυχώς. Μπορείτε πλέον να συνδεθείτε.'];
     } catch (Throwable $e) { if($db->inTransaction())$db->rollBack(); return ['success'=>false,'message'=>'Δεν ήταν δυνατή η αλλαγή κωδικού.']; }
 }
+
+// Also enforced when upgrading an installation whose protected config stays intact.
+if(function_exists('academicYearRequestGuard'))academicYearRequestGuard();

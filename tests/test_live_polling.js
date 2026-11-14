@@ -11,7 +11,7 @@ const ctx = vm.createContext({
     isLiveActive:true, livePollInFlight:false, livePollTimer:null, liveRetryButton:null,
     liveFailures:0, currentDate:'2026-11-11', currentGradeId:0, currentSectionId:20,
     currentStatusFilter:'all', currentLiveHash:'before', isFirstCheck:true,
-    document:{hidden:false, getElementById:()=>null}, AbortController,
+    document:{hidden:false, getElementById:()=>null}, window:{}, AbortController,
     setTimeout:(fn,delay)=>{delays.push(delay);return delays.length;}, clearTimeout:()=>{},
     updateLiveConnection:()=>{}, updateKpiBadges:()=>{}, updateAttendanceTable:()=>{},
     fetch:async()=>{throw new Error('timeout');}, Date, Set
@@ -27,6 +27,10 @@ vm.runInContext(poll, ctx);
     await ctx.pollAttendanceUpdates();
     assert.equal(ctx.liveFailures,0);
     assert.equal(delays.at(-1),2500);
+    ctx.document.hidden=true;
+    await ctx.pollAttendanceUpdates();
+    assert.equal(delays.at(-1),7000,'background tabs use the configured slower interval');
+    ctx.document.hidden=false;
     ctx.fetch=async()=>({ok:true,json:async()=>({has_updates:true,state_hash:'after',student_attendances:{}})});
     ctx.updateAttendanceTable=()=>{throw new Error('render failed');};
     await ctx.pollAttendanceUpdates();

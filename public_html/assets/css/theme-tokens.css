@@ -1,0 +1,45 @@
+/* EDIT HERE: shared appearance. See docs/UI-STYLING.md.
+   Keep semantic success/warning/danger colours separate from the accent. */
+:root {
+    --ui-accent: #4f46e5;
+    --ui-accent-hover: #4338ca;
+    --ui-accent-soft: #eef2ff;
+    --ui-button-bg: #4f46e5;
+    --ui-button-hover: #4338ca;
+    --ui-button-text: #ffffff;
+    --ui-page-bg: #f8fafc;
+    --ui-panel-bg: #ffffff;
+    --ui-text: #1e293b;
+    --ui-muted: #475569;
+    --ui-border: #d5deeb;
+    --ui-panel-radius: 14px;
+    --ui-control-radius: 9px;
+    --ui-panel-padding: 24px;
+    --ui-panel-padding-mobile: 16px;
+    --ui-panel-gap: 20px;
+    --ui-panel-title-size: 18px;
+    --ui-panel-shadow: 0 2px 8px rgb(15 23 42 / 0.045);
+    --ui-inset-bg: var(--ui-page-bg);
+    --ui-tabs-gap: 6px;
+    --ui-tab-padding: 10px 15px;
+    --ui-tab-font-size: 13.5px;
+    --ui-tab-weight: 600;
+    --ui-group-padding: 16px 18px;
+    --ui-group-body-padding: 18px;
+    --ui-transition: 160ms;
+}
+[data-theme="dark"] {
+    --ui-accent: #a5b4fc;
+    --ui-accent-hover: #c7d2fe;
+    --ui-accent-soft: #312e81;
+    --ui-page-bg: #0b1120;
+    --ui-panel-bg: #1e293b;
+    --ui-text: #f8fafc;
+    --ui-muted: #b0bed0;
+    --ui-border: #3c4c63;
+    --ui-panel-shadow: 0 2px 8px rgb(0 0 0 / 0.18);
+}
+@media (max-width:600px) {
+    :root { --ui-panel-padding: var(--ui-panel-padding-mobile); --ui-group-padding: 14px; --ui-group-body-padding: 14px; }
+}
+@media (prefers-reduced-motion:reduce) { :root { --ui-transition: 0ms; } }

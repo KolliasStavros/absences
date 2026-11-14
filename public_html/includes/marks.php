@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Grading domain. Integer hundredths avoid binary floating-point step errors.
 require_once __DIR__.'/request_validation.php';
+require_once __DIR__.'/academic_year_state.php';
 require_once __DIR__.'/co_teaching.php';
 
 function marksTables(): array {
@@ -57,8 +58,7 @@ function marksValue(mixed $value,array $period): ?string {
 }
 
 function marksActiveYearLock(PDO $db,int $year): void {
-    $q=$db->prepare('SELECT id FROM academic_years WHERE id=? AND is_active=1 FOR UPDATE'); $q->execute([$year]);
-    if(!$q->fetchColumn()) throw new DomainException('Το ενεργό σχολικό έτος άλλαξε. Ανανεώστε τη σελίδα.');
+    academicYearAssertWritable($db,$year);
 }
 
 function marksCourse(PDO $db,int $year,int $course,array $user,bool $lock=false): array {

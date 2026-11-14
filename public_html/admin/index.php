@@ -978,6 +978,7 @@ foreach ($studentRows as $sr) {
 <link rel="stylesheet" href="../assets/css/dashboard-responsive.css?v=20261104-2">
 <link rel="stylesheet" href="../assets/css/ui-components.css?v=20261029-2">
 <link rel="stylesheet" href="../assets/css/bulk-notification-preview.css?v=20261029-2">
+<script src="../assets/js/attendance-sync.js?v=20261115-1"></script>
 <script src="../assets/js/bulk-notification-preview.js?v=20261105-1" defer></script>
 <?php
 $printGrade='Όλες οι τάξεις'; $printSection='Όλα τα τμήματα';
@@ -2545,14 +2546,19 @@ document.addEventListener('keydown', function(e) {
         const requestTimeout = setTimeout(() => controller.abort(), 12000);
 
         const pollInterval = document.hidden ? 7000 : 2500;
+        const localSnapshot = window.attendanceSync?.snapshot();
 
         try {
+            if (localSnapshot === null) return;
             const url = `../api/get_live_attendance.php?date=${encodeURIComponent(currentDate)}&grade_id=${currentGradeId}&section_id=${currentSectionId}&status_filter=${encodeURIComponent(currentStatusFilter)}&state_hash=${encodeURIComponent(currentLiveHash)}`;
 
             const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
             if (!response.ok) throw new Error('Live update unavailable');
             if (response.ok) {
                 const data = await response.json();
+                // The response may have been read before a write that has already
+                // updated the row. Discard it, including its hash/KPIs/toasts.
+                if (window.attendanceSync && !window.attendanceSync.accepts(localSnapshot)) return;
                 if (!data || typeof data.has_updates !== 'boolean' || typeof data.state_hash !== 'string' || !data.state_hash) {
                     throw new Error('Invalid live update response');
                 }

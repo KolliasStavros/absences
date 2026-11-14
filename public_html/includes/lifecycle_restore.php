@@ -28,7 +28,7 @@ trait AbsencesRestore {
         throw new DomainException('Το αρχείο δεν αντιστοιχεί σε καταγεγραμμένο backup αυτής της εγκατάστασης. Δεν αρκούν τα hashes που περιέχει το ίδιο το ZIP.');
     }
     private function restoreProtected(string $path): bool {
-        return (bool)preg_match('~^(config|bin|release|scratch|tests|\.[^/]+)(/|$)~i',$path) || (bool)preg_match('/\.(zip|tar|gz|key|pem)$/i',$path) || in_array(strtolower($path),['install.php','admin/maintenance.php','includes/auth.php','includes/security.php','includes/diagnostics.php','includes/lifecycle.php','includes/lifecycle_guard.php','includes/lifecycle_restore.php','includes/lifecycle.md'],true);
+        return (bool)preg_match('~^(config|bin|release|scratch|tests|\.[^/]+)(/|$)~i',$path) || (bool)preg_match('/\.(zip|tar|gz|key|pem)$/i',$path) || in_array(strtolower($path),['install.php','admin/maintenance.php','includes/auth.php','includes/security.php','includes/diagnostics.php','includes/lifecycle.php','includes/lifecycle_guard.php','includes/lifecycle_restore.php','includes/lifecycle_portable_recovery.php','includes/portable_recovery.php','includes/teacher_registry_migration.php','includes/lifecycle.md'],true);
     }
     private function restorePrivileges(): bool {
         return !array_diff(['SELECT','INSERT','UPDATE','CREATE','DROP','REFERENCES'],$this->databasePrivileges());

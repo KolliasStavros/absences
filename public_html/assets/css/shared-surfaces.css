@@ -1,0 +1,75 @@
+/* Shared surfaces have enough specificity to replace page-level visual details.
+   Layout (grid, width, positioning, margin) stays with each page. */
+:root .card {
+    background: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border);
+    border-radius: var(--ui-panel-radius);
+    box-shadow: var(--ui-panel-shadow);
+    padding: var(--ui-panel-padding);
+    min-width: 0;
+}
+:root .card-title { font-size: var(--ui-panel-title-size); line-height: 1.5; gap: 10px; }
+:root :is(.myschool-file,.custom-email-text,.year-backup,.portable-note) {
+    border-radius: var(--ui-control-radius);
+}
+:root :is(.email-template-group,.year-detail,.app-disclosure) {
+    border: 1px solid var(--border);
+    border-radius: var(--ui-control-radius);
+    background: var(--bg-card);
+    margin-block: 12px;
+    overflow: clip;
+}
+:root :is(.email-template-group,.year-detail,.app-disclosure) > summary {
+    padding: var(--ui-group-padding);
+    background: var(--ui-inset-bg);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.6;
+    cursor: pointer;
+    transition: color var(--ui-transition), background-color var(--ui-transition);
+}
+:root :is(.email-template-group,.year-detail,.app-disclosure) > summary::marker { color: var(--primary); }
+:root :is(.email-template-group,.year-detail,.app-disclosure) > summary:hover { color: var(--primary); }
+:root :is(.email-template-group,.year-detail,.app-disclosure)[open] > summary { border-bottom: 1px solid var(--border); }
+:root :is(.email-template-group-body,.app-disclosure-body), :root .year-detail > div { padding: var(--ui-group-body-padding); }
+:root .year-danger > summary { color: var(--danger); }
+:root .year-danger > summary:hover { color: var(--danger); }
+:root .year-danger > summary::marker { color: var(--danger); }
+:root :is(.nav-tabs,.app-tabs) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-tabs-gap);
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--ui-inset-bg);
+    margin-bottom: var(--ui-panel-gap);
+}
+:root :is(.nav-tab,.app-tabs > a) {
+    padding: var(--ui-tab-padding);
+    border-radius: var(--ui-control-radius);
+    font-size: var(--ui-tab-font-size);
+    font-weight: var(--ui-tab-weight);
+    line-height: 1.5;
+    text-decoration: none;
+    color: var(--text-muted);
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color var(--ui-transition), background-color var(--ui-transition), box-shadow var(--ui-transition);
+}
+:root .app-tabs > a { border: 1px solid transparent; background: transparent; }
+:root :is(.nav-tab:hover,.app-tabs > a:hover) { background: var(--bg-card); color: var(--primary); }
+:root :is(.nav-tabs,.app-tabs) :is(.nav-tab.active,a[aria-current="page"]) {
+    background: var(--bg-card);
+    color: var(--primary);
+    box-shadow: var(--ui-panel-shadow);
+    font-weight: 700;
+}
+:root :is(.nav-tab,.app-tabs > a,.email-template-group > summary,.year-detail > summary,.app-disclosure > summary):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -3px;
+}
+@media(max-width:600px) { :root .app-tabs > a { flex: 1 1 auto; justify-content: center; } }

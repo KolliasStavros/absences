@@ -111,7 +111,7 @@ if (!empty($marksAdminLayout)) {
 ?>
 <!doctype html><html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Βαθμολογία · <?= $h($schoolName) ?></title>
-<link rel="stylesheet" href="../assets/css/style.css?v=daylight-20261029-1">
+<link rel="stylesheet" href="../assets/css/style.css?v=shared-ui-20261115-1">
 <link rel="stylesheet" href="../assets/css/marks.css?v=5">
 <script src="../assets/js/theme.js?v=20261029-1"></script>
 </head><body>

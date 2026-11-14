@@ -1,5 +1,6 @@
 <?php
 // includes/db.php - PDO Database connection helper
+require_once __DIR__.'/academic_year_state.php';
 
 /**
  * Custom PDO wrapper that transparently prepends DB_PREFIX to system tables
@@ -115,8 +116,13 @@ function getActiveAcademicYear($forceRefresh = false) {
     }
     try {
         $db = getDB();
-        $stmt = $db->query("SELECT id, name, is_active FROM academic_years WHERE is_active = 1 LIMIT 1");
+        $view=(int)($_SESSION['academic_year_view']??0);
+        $actor=$view&&function_exists('getCurrentUser')?getCurrentUser():null;
+        if($view&&($actor['role']??'')==='admin'){
+            $stmt=$db->prepare('SELECT id,name,is_active FROM academic_years WHERE id=?');$stmt->execute([$view]);
+        }else $stmt = $db->query("SELECT id, name, is_active FROM academic_years WHERE is_active = 1 LIMIT 1");
         $year = $stmt->fetch(PDO::FETCH_ASSOC);
+        if(!$year&&$view){unset($_SESSION['academic_year_view']);$year=$db->query('SELECT id,name,is_active FROM academic_years WHERE is_active=1 LIMIT 1')->fetch(PDO::FETCH_ASSOC);}
         if (!$year) throw new RuntimeException('No active academic year configured');
         $cachedActiveYear = [
             'id' => (int)$year['id'],
@@ -157,100 +163,18 @@ function getAllAcademicYearsWithStats() {
  * Switch active academic year
  */
 function setActiveAcademicYear($yearId) {
-    $yearId = (int)$yearId;
-    if ($yearId <= 0) return false;
-    $db = getDB();
-    $db->beginTransaction();
-    try {
-        $db->exec("UPDATE academic_years SET is_active = 0");
-        $stmt = $db->prepare("UPDATE academic_years SET is_active = 1 WHERE id = ?");
-        $stmt->execute([$yearId]);
-        $db->commit();
-        getActiveAcademicYear(true); // Reset cache
-        return true;
-    } catch (Exception $e) {
-        if ($db->inTransaction()) $db->rollBack();
-        return false;
-    }
+    require_once __DIR__.'/academic_years.php';
+    try{(new AcademicYears(getDB(),defined('DB_PREFIX')?DB_PREFIX:''))->activate((int)$yearId);unset($_SESSION['academic_year_view']);getActiveAcademicYear(true);return true;}
+    catch(Exception $e){return false;}
 }
 
-/**
- * Create a new academic year
- */
-function createAcademicYear($name, $setAsActive = true) {
-    $name = trim($name);
-    if (empty($name)) {
-        return false;
-    }
-    $db = getDB();
-    
-    // Check if name already exists
-    $stmt = $db->prepare("SELECT id FROM academic_years WHERE name = ?");
-    $stmt->execute([$name]);
-    if ($stmt->fetch()) {
-        return false;
-    }
-
-    $db->beginTransaction();
-    try {
-        if ($setAsActive) {
-            $db->exec("UPDATE academic_years SET is_active = 0");
-        }
-        $stmt = $db->prepare("INSERT INTO academic_years (name, is_active) VALUES (?, ?)");
-        $stmt->execute([$name, $setAsActive ? 1 : 0]);
-        $newId = (int)$db->lastInsertId();
-        $db->commit();
-        getActiveAcademicYear(true); // Reset cache
-        return $newId;
-    } catch (Exception $e) {
-        if ($db->inTransaction()) $db->rollBack();
-        return false;
-    }
+function createAcademicYear($name,$setAsActive=true) {
+    require_once __DIR__.'/academic_years.php';
+    try{$id=(new AcademicYears(getDB(),defined('DB_PREFIX')?DB_PREFIX:''))->create(trim((string)$name),(bool)$setAsActive);if($setAsActive)unset($_SESSION['academic_year_view']);getActiveAcademicYear(true);return $id;}
+    catch(Exception $e){return false;}
 }
 
-/**
- * Delete an academic year (and all its associated student, attendance & assignment records)
- */
+// Historical data may only be deleted through the verified annual-backup workflow.
 function deleteAcademicYear($yearId) {
-    $yearId = (int)$yearId;
-    $db = getDB();
-    
-    try {
-        $stmt = $db->prepare("SELECT name, is_active FROM academic_years WHERE id = ?");
-        $stmt->execute([$yearId]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$row) {
-            return ['success' => false, 'error' => 'Το διδακτικό έτος δεν βρέθηκε.'];
-        }
-
-        $totalYears = (int)$db->query("SELECT COUNT(*) FROM academic_years")->fetchColumn();
-        if ($totalYears <= 1) {
-            return ['success' => false, 'error' => 'Δεν μπορείτε να διαγράψετε το μοναδικό διδακτικό έτος του συστήματος.'];
-        }
-        if ((int)$row['is_active'] === 1) {
-            return ['success' => false, 'error' => 'Δεν μπορείτε να διαγράψετε το τρέχον ενεργό διδακτικό έτος. Επιλέξτε πρώτα ένα άλλο έτος ως ενεργό.'];
-        }
-
-        // DATA-01: Protect historical records from CASCADE deletion
-        $stmtAtt = $db->prepare("SELECT COUNT(*) FROM attendance WHERE academic_year_id = ?");
-        $stmtAtt->execute([$yearId]);
-        $attCount = (int)$stmtAtt->fetchColumn();
-        if ($attCount > 0) {
-            return ['success' => false, 'error' => "Δεν είναι δυνατή η διαγραφή του σχολικού έτους «{$row['name']}» επειδή περιέχει {$attCount} καταχωρημένες απουσίες. Το ιστορικό απουσιών προστατεύεται από οριστική διαγραφή."];
-        }
-
-        $stmtStu = $db->prepare("SELECT COUNT(*) FROM students WHERE academic_year_id = ?");
-        $stmtStu->execute([$yearId]);
-        $stuCount = (int)$stmtStu->fetchColumn();
-        if ($stuCount > 0) {
-            return ['success' => false, 'error' => "Δεν είναι δυνατή η διαγραφή του σχολικού έτους «{$row['name']}» επειδή περιέχει {$stuCount} εγγεγραμμένους μαθητές."];
-        }
-
-        $stmt = $db->prepare("DELETE FROM academic_years WHERE id = ?");
-        $stmt->execute([$yearId]);
-        getActiveAcademicYear(true);
-        return ['success' => true];
-    } catch (Exception $e) {
-        return ['success' => false, 'error' => safeError($e)];
-    }
+    return ['success'=>false,'error'=>'Χρησιμοποιήστε Σχολικά έτη: απαιτείται κλειστό έτος, ελεγμένο και ληφθέν backup και επιβεβαίωση διαγραφής.'];
 }

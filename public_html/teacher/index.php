@@ -53,7 +53,7 @@ $suggestedHour = getCurrentSuggestedTeachingHour();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css?v=daylight-20261029-1">
+    <link rel="stylesheet" href="../assets/css/style.css?v=shared-ui-20261115-1">
     <?php require __DIR__.'/../includes/diagnostics_client.php'; ?>
     <script src="../assets/js/theme.js?v=20261029-1"></script>
     <style>

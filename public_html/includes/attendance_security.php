@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/academic_year_state.php';
 require_once __DIR__.'/teacher_assignments.php';
 require_once __DIR__.'/attendance_undo.php';
 // A single year mutex serializes every attendance mutation, including empty slots.
@@ -8,6 +9,7 @@ function beginAttendanceMutation(PDO $db, int $yearId, array $roles = ['admin','
     $stmt = $db->prepare('SELECT id FROM academic_years WHERE id = ? AND is_active = 1 FOR UPDATE');
     $stmt->execute([$yearId]);
     if (!$stmt->fetchColumn()) attendanceDenied($db, 409, 'Το ενεργό σχολικό έτος άλλαξε. Ανανεώστε τη σελίδα.');
+    if (academicYearClosed($db,$yearId)) attendanceDenied($db,409,'Το σχολικό έτος είναι κλειστό.');
     $actor=$db->prepare('SELECT id FROM users WHERE id=? LOCK IN SHARE MODE');
     $actor->execute([$_SESSION['user_id'] ?? 0]);
     $user=getCurrentUser();
