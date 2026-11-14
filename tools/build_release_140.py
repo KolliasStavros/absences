@@ -22,10 +22,16 @@ def archive(folder,path):
 def replace_once(text,old,new):
     if text.count(old)!=1:raise RuntimeError('Unexpected reviewed baseline anchor: '+old[:70])
     return text.replace(old,new,1)
+def verify_signer(key,public_file):
+    # Match the previous official release's public key BEFORE creating any output.
+    # Never accept an arbitrary, otherwise-valid signing key silently.
+    code="""$s=base64_decode(trim(file_get_contents($argv[1])),true);$p=base64_decode(trim(file_get_contents($argv[2])),true);if($s===false||strlen($s)!==64||$p===false||strlen($p)!==32||!hash_equals($p,sodium_crypto_sign_publickey_from_secretkey($s))){fwrite(STDERR,'Signing key does not match the previous official release public key.');exit(1);}"""
+    subprocess.run(['php','-d','xdebug.mode=off','-r',code,str(key),str(public_file)],check=True)
 def build(key):
     root=Path(__file__).resolve().parent.parent
     app=root/'public_html' if (root/'public_html').is_dir() else root
     baseline=root/'release/absences-public-1.3.0';target=root/'release/absences-public-1.4.0'
+    verify_signer(key,baseline/'docs/RELEASE-PUBLIC-KEY.txt')
     public_zip=root/'release/absences-public-1.4.0.zip'
     update=root/'release/absences-update-1.3.0-to-1.4.0.zip';prep=root/'release/absences-maintenance-preparation-1.4.0.zip'
     if any(p.exists() for p in [target,public_zip,update,prep]):raise RuntimeError('Refusing to overwrite existing release.')
