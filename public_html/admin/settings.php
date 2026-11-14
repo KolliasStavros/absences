@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__."/../includes/absence_types.php";
+require_once __DIR__."/../includes/email_templates.php";
 // admin/settings.php - System, Multi-SMTP Profiles & Email Template Configuration
 $pageTitle = 'Ρυθμίσεις & Email';
+$emailTemplatesTab = ($_GET['tab'] ?? '') === 'email-templates';
 require_once __DIR__ . '/header.php';
 
 $db = getDB();
@@ -153,17 +155,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_test_email'])) {
 
 // 6. Handle General Settings & Template & Privacy
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_general_settings'])) {
-    $keys = ['school_name', 'school_email', 'school_phone', 'email_template_subject', 'email_template_body'];
+    try {
+    if ($emailTemplatesTab) {
+    $customTexts=validateCustomEmailTexts($_POST['custom_text_name']??[],$_POST['custom_text_value']??[]);
+    foreach(['daily'=>'email_template','history'=>'email_history','summary'=>'email_summary'] as $mode=>$prefix) {
+        foreach(['subject','body'] as $part) {
+            $value=$_POST[$prefix.'_'.$part]??null;
+            if(!is_string($value)) throw new DomainException('Συμπληρώστε όλα τα πρότυπα email.');
+            validateSchoolEmailTemplate($value,$mode,$customTexts,$part==='subject');
+        }
+    }
+    }
+    $db->beginTransaction();
+    if ($emailTemplatesTab) updateSchoolSetting('email_custom_texts',json_encode($customTexts,JSON_UNESCAPED_UNICODE));
+    $keys = $emailTemplatesTab
+        ? ['email_template_subject','email_template_body','email_history_subject','email_history_body','email_summary_subject','email_summary_body']
+        : ['school_name','school_email','school_phone'];
     foreach ($keys as $k) {
         if (isset($_POST[$k])) {
             updateSchoolSetting($k, trim($_POST[$k]));
         }
     }
-    $maskVal = isset($_POST['mask_student_name']) ? '1' : '0';
-    updateSchoolSetting('mask_student_name', $maskVal);
+    if ($emailTemplatesTab) {
+        $maskVal = isset($_POST['mask_student_name']) ? '1' : '0';
+        updateSchoolSetting('mask_student_name', $maskVal);
+    }
 
     // Save School Bell Schedule (Ωράριο Διδακτικών Ωρών)
-    if (isset($_POST['bell_start'], $_POST['bell_end']) && is_array($_POST['bell_start']) && is_array($_POST['bell_end'])) {
+    if (!$emailTemplatesTab && isset($_POST['bell_start'], $_POST['bell_end']) && is_array($_POST['bell_start']) && is_array($_POST['bell_end'])) {
         $newSchedule = [];
         for ($h = 1; $h <= 7; $h++) {
             $start = trim($_POST['bell_start'][$h] ?? '');
@@ -186,7 +205,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_general_settings
         }
     }
 
-    $message = 'Τα στοιχεία του σχολείου, το ωράριο διδακτικών ωρών, οι ρυθμίσεις απορρήτου και το πρότυπο email αποθηκεύτηκαν επιτυχώς!';
+    $db->commit();
+    $message = $emailTemplatesTab ? 'Τα πρότυπα email και οι μεταβλητές κειμένου αποθηκεύτηκαν επιτυχώς!' : 'Τα στοιχεία του σχολείου και το ωράριο αποθηκεύτηκαν επιτυχώς!';
+    } catch (Exception $e) {
+        if($db->inTransaction()) $db->rollBack();
+        $error=$e instanceof DomainException?$e->getMessage():safeError($e);
+    }
 }
 
 // 6a. Handle SMS Gateway Settings
@@ -357,6 +381,12 @@ $schoolPhone = getSchoolSetting('school_phone', '2100000000');
 $templateSubject = getSchoolSetting('email_template_subject', 'Ενημέρωση Απουσιών Μαθητή - {school_name}');
 $templateBody = getSchoolSetting('email_template_body', defaultAbsenceEmailTemplate());
 $maskStudentName = getSchoolSetting('mask_student_name', '0');
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['save_general_settings'])&&$error!=='') {
+    foreach(['schoolName'=>'school_name','schoolEmail'=>'school_email','schoolPhone'=>'school_phone','templateSubject'=>'email_template_subject','templateBody'=>'email_template_body'] as $variable=>$field) {
+        if(is_string($_POST[$field]??null)) $$variable=$_POST[$field];
+    }
+    if ($emailTemplatesTab) $maskStudentName=isset($_POST['mask_student_name'])?'1':'0';
+}
 $bellSchedule = getBellSchedule();
 
 // SMS Gateway Settings
@@ -373,6 +403,11 @@ $activeAcademicYear = getActiveAcademicYear();
 $allAcademicYears = getAllAcademicYearsWithStats();
 ?>
 
+<nav aria-label="Καρτέλες ρυθμίσεων" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:12px">
+    <a href="settings.php" class="btn <?= !$emailTemplatesTab ? 'btn-primary' : 'btn-secondary' ?>" <?= !$emailTemplatesTab ? 'aria-current="page"' : '' ?>>Ρυθμίσεις &amp; Email</a>
+    <a href="settings.php?tab=email-templates" class="btn <?= $emailTemplatesTab ? 'btn-primary' : 'btn-secondary' ?>" <?= $emailTemplatesTab ? 'aria-current="page"' : '' ?>>Πρότυπα Email</a>
+</nav>
+
 <?php if ($message): ?>
     <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
 <?php endif; ?>
@@ -381,9 +416,10 @@ $allAcademicYears = getAllAcademicYearsWithStats();
 <?php endif; ?>
 
 <!-- 1. School Settings & Template Form (Top Section) -->
-<form method="POST" action="settings.php" style="margin-bottom:28px;">
+<form method="POST" action="<?= $emailTemplatesTab ? 'settings.php?tab=email-templates' : 'settings.php' ?>" style="margin-bottom:28px;">
     <?= csrfField() ?>
-    <div class="settings-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+    <div class="settings-grid" style="display:grid; grid-template-columns: <?= $emailTemplatesTab ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))' ?>; gap:24px; align-items:start;">
+        <?php if (!$emailTemplatesTab): ?>
         <div class="card">
             <h3 class="card-title">🏫 Στοιχεία Σχολείου</h3>
             <div class="form-group">
@@ -399,7 +435,8 @@ $allAcademicYears = getAllAcademicYearsWithStats();
                 <input type="text" name="school_phone" class="form-control" value="<?= htmlspecialchars($schoolPhone) ?>">
             </div>
 
-            <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border); margin-bottom:18px;">
+        </div>
+        <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
                     <label style="font-size:13px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:6px; margin-bottom:0;">
                         <span>⏰</span> Ωράριο Διδακτικών Ωρών (24ωρη μορφή)
@@ -431,15 +468,12 @@ $allAcademicYears = getAllAcademicYearsWithStats();
                         <span>💡</span> <em>Συμπληρώστε τις ώρες σε 24ωρη μορφή (π.χ. 08:15, 13:25, 14:10). Στο Παρουσιολόγιο προεπιλέγεται αυτόματα η σωστή ώρα.</em>
                     </div>
                 </div>
-            </div>
-
-            <button type="submit" name="save_general_settings" class="btn btn-primary btn-block">
-                💾 Αποθήκευση Στοιχείων &amp; Ωραρίου
-            </button>
         </div>
 
-        <div class="card">
-            <h3 class="card-title">✉️ Πρότυπο Συγκεντρωτικού Email</h3>
+        <?php else: ?>
+        <div class="card email-template-settings">
+            <link rel="stylesheet" href="../assets/css/email-template-settings.css?v=1">
+            <details class="email-template-group"><summary>Πρότυπο ημερήσιων απουσιών</summary><div class="email-template-group-body">
             <div class="form-group">
                 <label>Θέμα Email (Subject)</label>
                 <input type="text" name="email_template_subject" class="form-control" value="<?= htmlspecialchars($templateSubject) ?>" required>
@@ -450,7 +484,8 @@ $allAcademicYears = getAllAcademicYearsWithStats();
                 <textarea name="email_template_body" class="form-control" rows="8" required><?= htmlspecialchars($templateBody) ?></textarea>
             </div>
 
-            <div class="settings-panel" style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:14px; font-size:12px;">
+            </div></details><details class="email-template-group"><summary>Μεταβλητές ημερήσιου email</summary><div class="email-template-group-body">
+<div class="settings-panel" style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:14px; font-size:12px;">
                 <div style="font-weight:700; margin-bottom:4px;">Διαθέσιμες Μεταβλητές:</div>
                 <div class="settings-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px;">
                     <div><code>{student_title}</code> : ο μαθητής / η μαθήτρια</div>
@@ -459,12 +494,17 @@ $allAcademicYears = getAllAcademicYearsWithStats();
                     <div><code>{student_genitive}</code> : Σε Γενική πτώση</div>
                     <div><code>{guardian_name_voc}</code> : Κλητική Κηδεμόνα</div>
                     <div><code>{hours}</code> : Ώρες (π.χ. 1η, 2η, 3η)</div>
-                    <div><code>{date}</code> : Σημερινή ημερομηνία</div>
+                    <div><code>{date}</code> : Ημερομηνία απουσιών</div>
                     <div><code>{school_name}</code> : Όνομα σχολείου</div>
+                    <div><code>{school_phone}</code> : Τηλέφωνο σχολείου</div>
+                    <div><code>{student_noun}</code> : μαθητής / μαθήτρια</div>
+                    <div><code>{student_article}</code> : ο / η</div>
+                    <div><code>{student_article_gen}</code> : του / της</div>
                 </div>
             </div>
 
-            <div class="form-group" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-top:10px; margin-bottom:14px;">
+            </div></details><details class="email-template-group"><summary>Απόκρυψη ονόματος μαθητή</summary><div class="email-template-group-body">
+<div class="form-group" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-top:10px; margin-bottom:14px;">
                 <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-weight:700; margin-bottom:4px; color:#166534; font-size:13px;">
                     <input type="checkbox" name="mask_student_name" value="1" <?= $maskStudentName === '1' ? 'checked' : '' ?> style="width:18px; height:18px; margin-top:2px;">
                     <span>🔒 Απόκρυψη Ονόματος Μαθητή στα Emails (Προστασία GDPR)</span>
@@ -475,13 +515,22 @@ $allAcademicYears = getAllAcademicYearsWithStats();
                 </div>
             </div>
 
+<p>Η επιλογή αφορά το ημερήσιο email. Στο ιστορικό και τη μαζική συγκεντρωτική ενημέρωση τα ονόματα αποκρύπτονται πάντα.</p></div></details>
+            <?php require __DIR__.'/../includes/email_template_settings.php'; ?>
             <button type="submit" name="save_general_settings" class="btn btn-primary btn-block">
-                💾 Αποθήκευση Στοιχείων &amp; Προτύπου Email
+                💾 Αποθήκευση προτύπων &amp; μεταβλητών
             </button>
         </div>
+        <?php endif; ?>
     </div>
+    <?php if (!$emailTemplatesTab): ?>
+    <button type="submit" name="save_general_settings" class="btn btn-primary btn-block" style="margin-top:16px">
+        💾 Αποθήκευση Στοιχείων &amp; Ωραρίου
+    </button>
+    <?php endif; ?>
 </form>
 
+<?php if (!$emailTemplatesTab): ?>
 <!-- 2. Administrator Account & Password Management Section -->
 <div class="card" id="admin-profile" style="margin-bottom:28px; border-left: 4px solid #8b5cf6;">
     <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
@@ -564,11 +613,7 @@ $allAcademicYears = getAllAcademicYearsWithStats();
     </form>
 </div>
 
-<div class="card" id="grading-settings" style="margin-bottom:28px;">
-    <h2>Βαθμολογία</h2>
-    <p>Όρια βαθμών, βήμα αριθμητικής εισαγωγής και μπάρας, και άνοιγμα περιόδων ανά σχολικό έτος.</p>
-    <a class="btn btn-primary" href="marks.php?view=settings">Ρυθμίσεις βαθμολογίας</a>
-</div>
+
 
 <!-- 3. Academic Year Management Section -->
 <div class="card" style="margin-bottom:28px; border-left: 4px solid var(--primary);">
@@ -1161,4 +1206,5 @@ $allAcademicYears = getAllAcademicYearsWithStats();
     document.addEventListener('DOMContentLoaded', updateSmsCharCounter);
 </script>
 
+<?php endif; ?>
 <?php require_once __DIR__ . '/footer.php'; ?>

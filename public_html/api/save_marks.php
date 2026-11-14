@@ -3,6 +3,7 @@ require_once __DIR__.'/../config/config.php';
 require_once __DIR__.'/../includes/marks.php';
 header('Content-Type: application/json; charset=utf-8');
 $user=requireApiLogin(); requirePost();
+if (!(require __DIR__.'/../includes/marks_enabled.php')) schoolJsonResponse(['error'=>'Η Βαθμολογία είναι προσωρινά απενεργοποιημένη.'],503);
 try {
     if((int)($_SERVER['CONTENT_LENGTH']??0)>262144) schoolJsonResponse(['error'=>'Υπερβολικά μεγάλο αίτημα.'],413);
     $input=json_decode(file_get_contents('php://input'),true,32,JSON_THROW_ON_ERROR);

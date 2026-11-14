@@ -89,11 +89,12 @@ function marksImportMatches(PDO $db,array $preview): array {
     return ['users'=>$users,'sections'=>$sections,'teachers'=>$teachers,'section_matches'=>$sectionMatches];
 }
 
-function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $teacherMap,array $sectionMap,string $assignmentPolicy='preserve'): int {
+function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $teacherMap,array $sectionMap,string $assignmentPolicy='preserve',bool $manageTransaction=true): int {
     if(($user['role']??'')!=='admin') throw new DomainException('Απαιτείται διαχειριστής.');
     if(!in_array($assignmentPolicy,['preserve','replace'],true)) throw new DomainException('Επιλέξτε τρόπο εισαγωγής αναθέσεων.');
     if(!isset($preview['rows'])||count($preview['rows'])>5000) throw new DomainException('Μη έγκυρη προεπισκόπηση.');
-    $db->beginTransaction();
+    if(!$manageTransaction&&!$db->inTransaction())throw new LogicException('An import transaction is required.');
+    if($manageTransaction)$db->beginTransaction();
     try {
         marksActiveYearLock($db,$year);
         $q=$db->prepare('SELECT name FROM academic_years WHERE id=?'); $q->execute([$year]);
@@ -149,8 +150,8 @@ function marksCommitImport(PDO $db,int $year,array $user,array $preview,array $t
             }
             $n++;
         }
-        $db->commit(); return $n;
-    } catch(Throwable $e) { if($db->inTransaction()) $db->rollBack(); throw $e; }
+        if($manageTransaction)$db->commit(); return $n;
+    } catch(Throwable $e) { if($manageTransaction&&$db->inTransaction()) $db->rollBack(); throw $e; }
 }
 
 function marksAssignmentSnapshot(PDO $db,int $id): array {

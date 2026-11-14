@@ -293,9 +293,6 @@ if ($contactFilter!=='all') $students=array_values(array_filter($students,static
             <button type="button" class="btn btn-primary" onclick="openAddStudentModal()" style="height:38px; padding:0 16px; font-size:13px; font-weight:700; white-space:nowrap;">
                 ➕ Προσθήκη Μαθητή
             </button>
-            <a href="import.php" class="btn btn-secondary" style="height:38px; padding:0 14px; font-size:13px; font-weight:600; white-space:nowrap; text-decoration:none;">
-                📥 Εισαγωγή Excel
-            </a>
         </div>
     </div>
 </div>

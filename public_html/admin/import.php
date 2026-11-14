@@ -1,7 +1,11 @@
 <?php
 // admin/import.php - Import Students or Teachers & Section Assignments from MySchool Excel (.xls, .xlsx) or CSV
+require_once __DIR__.'/../config/config.php';
+requireAdmin();
+if(($_GET['type']??'')==='teachers'||($_POST['import_type']??'')==='teachers'||isset($_POST['import_local_teacher'])){header('Location: '.BASE_URL.'/admin/myschool_import.php',true,303);exit;}
 $pageTitle = 'Εισαγωγή Excel / MySchool';
 require_once __DIR__ . '/header.php';
+echo '<p><a class="btn btn-primary" href="myschool_import.php">Εισαγωγή MySchool — μαθητές, μητρώο καθηγητών και αναθέσεις</a></p>';
 require_once __DIR__ . '/../includes/excel_reader.php';
 
 $db = getDB();
@@ -99,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $importKind = $importType;
 
             // Execute Import
+            if($importType==='teachers')throw new DomainException('Η εισαγωγή καθηγητών και αναθέσεων γίνεται από τη σελίδα «Εισαγωγή MySchool» με τα τρία αρχεία.');
             $db->beginTransaction();
             if ($importType === 'teachers') {
                 $importResults = ExcelReader::importMySchoolTeachers($sheet, $db, $activeYearId);
@@ -115,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
-            $error = "Σφάλμα κατά την εισαγωγή: " . ($e instanceof InvalidArgumentException ? $e->getMessage() : safeError($e));
+            $error = "Σφάλμα κατά την εισαγωγή: " . ($e instanceof InvalidArgumentException||$e instanceof DomainException ? $e->getMessage() : safeError($e));
         }
     }
 }
@@ -205,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <a href="import.php?type=students" class="btn <?= $selectedTab === 'students' ? 'btn-primary' : 'btn-secondary' ?>" style="font-size:13.5px; padding:8px 18px; text-decoration:none;">
         🎓 Εισαγωγή Μαθητών & Τμημάτων
     </a>
-    <a href="import.php?type=teachers" class="btn <?= $selectedTab === 'teachers' ? 'btn-primary' : 'btn-secondary' ?>" style="font-size:13.5px; padding:8px 18px; text-decoration:none;">
+    <a href="myschool_import.php" class="btn btn-secondary" style="font-size:13.5px; padding:8px 18px; text-decoration:none;">
         👥 Εισαγωγή Καθηγητών & Αναθέσεων
     </a>
 </div>

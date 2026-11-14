@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS `users` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(150) NOT NULL,
+    `teacher_registry_number` VARCHAR(30) DEFAULT NULL UNIQUE,
     `email` VARCHAR(150) NOT NULL UNIQUE,
     `password_hash` VARCHAR(255) DEFAULT NULL,
     `auth_version` INT UNSIGNED NOT NULL DEFAULT 1,

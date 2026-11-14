@@ -1,0 +1,15 @@
+.email-template-settings .email-template-group { border: 1px solid var(--border); border-radius: 10px; margin: 0 0 14px; overflow: hidden; }
+.email-template-settings .email-template-group > summary { cursor: pointer; padding: 16px 18px; background: var(--bg-main, #f8fafc); font-size: 14px; font-weight: 700; line-height: 1.5; }
+.email-template-settings .email-template-group > summary::marker { color: var(--primary, #4f46e5); }
+.email-template-settings .email-template-group > summary:hover { color: var(--primary, #4f46e5); }
+.email-template-settings .email-template-group > summary:focus-visible { outline: 2px solid var(--primary, #4f46e5); outline-offset: -3px; }
+.email-template-settings .email-template-group[open] > summary { border-bottom: 1px solid var(--border); }
+.email-template-settings .email-template-group-body { padding: 18px; }
+.email-template-settings .email-template-group-body > p { color: var(--text-muted); font-size: 13px; line-height: 1.7; margin: 0 0 12px; }
+.email-template-settings .form-group label { font-size: 13px; font-weight: 600; }
+.email-template-settings textarea { line-height: 1.7; resize: vertical; }
+.email-template-settings code { display: inline-block; overflow-wrap: anywhere; font-size: 12px; }
+.email-template-settings .custom-email-text { background: var(--bg-main, #f8fafc); }
+.email-template-settings .custom-email-text > label { display: block; }
+.email-template-settings .custom-email-text input { margin-top: 6px; }
+@media(max-width:600px) { .email-template-settings .email-template-group > summary { padding: 13px; } .email-template-settings .email-template-group-body { padding: 13px; } }

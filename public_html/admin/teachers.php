@@ -7,8 +7,11 @@ $pageTitle = 'Καθηγητές & Αναθέσεις';
 require_once __DIR__ . '/header.php';
 requireAdmin();
 require_once __DIR__ . '/../includes/admin_accounts.php';
+require_once __DIR__.'/../includes/myschool_import.php';
+require_once __DIR__.'/../includes/teacher_lifecycle.php';
 
 $db = getDB();
+$registryReady=myschoolRegistryReady($db);
 require_once __DIR__.'/../includes/teacher_assignments.php';
 $attendanceAssignmentsSql=teacherAttendanceAssignmentsSql($db);
 $activeAcademicYear = getActiveAcademicYear();
@@ -60,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt = $db->prepare("INSERT INTO users (name, email, role, status, password_hash) VALUES (?, ?, ?, ?, ?)");
                         $stmt->execute([$name, $email, $role, $status, $passwordHash]);
                         $teacherId = $db->lastInsertId();
+                        if($registryReady&&isset($_POST['teacher_registry_number']))myschoolSetTeacherNumber($db,(int)$teacherId,$_POST['teacher_registry_number']);
 
                         // Assign sections for active academic year
                         $stmtAssign = $db->prepare("INSERT INTO teacher_sections (academic_year_id, teacher_id, section_id) VALUES (?, ?, ?)");
@@ -80,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } catch (Exception $e) {
                     if ($db->inTransaction()) $db->rollBack();
-                    $error = 'Σφάλμα κατά την καταχώρηση: ' . safeError($e);
+                    $error = 'Σφάλμα κατά την καταχώρηση: ' . ($e instanceof DomainException?$e->getMessage():safeError($e));
                 }
             }
         }
@@ -109,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $previousRole = null;
                     foreach ($lockedAccounts as $account) if ((int)$account['id'] === $teacherId) $previousRole = $account['role'];
                     $db->prepare("UPDATE users SET name = ?, email = ?, role = ?, auth_version = auth_version + ? WHERE id = ?")->execute([$teacherName,$teacherEmail,$teacherRole,$previousRole !== $teacherRole ? 1 : 0,$teacherId]);
+                    if($registryReady&&isset($_POST['teacher_registry_number']))myschoolSetTeacherNumber($db,$teacherId,$_POST['teacher_registry_number']);
                 }
                 $assignedSections = resolveRoleSections($db, $teacherRole, $assignedSections);
                 $db->prepare("DELETE FROM teacher_sections WHERE teacher_id = ? AND academic_year_id = ?")->execute([$teacherId, $activeYearId]);
@@ -180,21 +185,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $teacher = $stmtChk->fetch();
 
                 if ($teacher) {
-                    // Check if teacher has recorded attendance in the past
-                    $stmtAtt = $db->prepare("SELECT COUNT(*) FROM attendance WHERE teacher_id = ?");
-                    $stmtAtt->execute([$teacherId]);
-                    $attCount = (int)$stmtAtt->fetchColumn();
-
-                    if ($attCount > 0) {
-                        // Deactivate user instead of deleting physically, so foreign key attendance.teacher_id is preserved!
-                        $db->prepare("UPDATE users SET status = 'inactive', auth_version=auth_version+1 WHERE id = ?")->execute([$teacherId]);
-                        $db->prepare("DELETE FROM teacher_sections WHERE teacher_id = ? AND academic_year_id = ?")->execute([$teacherId, $activeYearId]);
-                        $message = "Ο/Η εκπαιδευτικός {$teacher['name']} διαθέτει ιστορικό {$attCount} καταχωρημένων απουσιών. Για τη διασφάλιση της νομιμότητας και της ακεραιότητας των ιστορικών δεδομένων, ο λογαριασμός απενεργοποιήθηκε αντί για οριστική διαγραφή.";
-                    } else {
-                        // No attendance records exist: safe to delete physically
-                        $db->prepare("DELETE FROM users WHERE id = ? AND role IN ('teacher', 'teacher_admin')")->execute([$teacherId]);
-                        $message = "Ο/Η εκπαιδευτικός {$teacher['name']} διαγράφηκε επιτυχώς.";
-                    }
+                    archiveTeacher($db,$teacherId,$activeYearId,$user);
+                    $message = 'Ο καθηγητής αποχώρησε: η πρόσβαση ανακλήθηκε και οι ενεργές αναθέσεις του έτους απενεργοποιήθηκαν. Βαθμοί, απουσίες και ιστορικό διατηρήθηκαν.';
                 } else {
                     throw new DomainException('Για διαγραφή διαχειριστή αφαιρέστε πρώτα τον ρόλο admin από την επεξεργασία λογαριασμού.');
                 }
@@ -220,17 +212,22 @@ foreach ($allSections as $sec) {
     $allSectionsByGrade[$sec['grade_name']][] = $sec;
 }
 
+$registrySelect=$registryReady?'u.teacher_registry_number':'NULL AS teacher_registry_number';
+$showArchived=($_GET['archived']??'')==='1';
+$teacherStatusFilter=$showArchived?" AND u.status='inactive'":" AND u.status<>'inactive'";
 // Fetch all teachers with their assigned sections for the active academic year
 $teachersStmt = $db->prepare("
     SELECT u.id, u.name, u.email, u.role, u.status, u.created_at, u.last_active_at,
+           {$registrySelect},
            TIMESTAMPDIFF(SECOND, u.last_active_at, NOW()) as seconds_since_active,
            GROUP_CONCAT(s.name ORDER BY s.name SEPARATOR ', ') as section_names,
            GROUP_CONCAT(s.id) as section_ids,
-           (SELECT GROUP_CONCAT(manual.section_id) FROM teacher_sections manual WHERE manual.teacher_id=u.id AND manual.academic_year_id=?) AS manual_section_ids
+           (SELECT GROUP_CONCAT(manual_assignments.section_id) FROM teacher_sections manual_assignments WHERE manual_assignments.teacher_id=u.id AND manual_assignments.academic_year_id=?) AS manual_section_ids
     FROM users u
     LEFT JOIN {$attendanceAssignmentsSql} ts ON (u.id = ts.teacher_id AND ts.academic_year_id = ?)
     LEFT JOIN sections s ON ts.section_id = s.id
     WHERE u.role IN ('teacher', 'teacher_admin', 'admin')
+    {$teacherStatusFilter}
     GROUP BY u.id
     ORDER BY u.name ASC
 ");
@@ -287,13 +284,11 @@ function formatTeacherActivity($seconds, $timestamp) {
             <button type="button" onclick="openAddTeacherModal()" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; font-weight:700;">
                 <span>➕</span> Προσθήκη Καθηγητή
             </button>
-            <a href="teachers.php?view=import" class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; font-weight:700; text-decoration:none;">
-                <span>📥</span> Εισαγωγή αναθέσεων MySchool
-            </a>
         </div>
     </div>
 </div>
 
+<p style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-secondary" href="<?= $showArchived?'teachers.php':'teachers.php?archived=1' ?>"><?= $showArchived?'Ενεργοί και σε αναμονή καθηγητές':'Αποχωρήσαντες καθηγητές' ?></a><a class="btn btn-secondary" href="marks.php?view=manage">Αντικατάσταση καθηγητή / αναθέσεις μαθημάτων</a></p>
 <style>
 .status-indicator {
     display: inline-flex;
@@ -375,7 +370,7 @@ function formatTeacherActivity($seconds, $timestamp) {
                             $allAssigned = ($totalSectionsCount > 0 && $assignedCount >= $totalSectionsCount);
                             ?>
                             <tr>
-                                <td><strong><?= htmlspecialchars($t['name']) ?></strong></td>
+                                <td><strong><?= htmlspecialchars($t['name']) ?></strong><?php if(!empty($t['teacher_registry_number'])): ?><small style="display:block">ΑΜ <?= htmlspecialchars($t['teacher_registry_number']) ?></small><?php endif; ?></td>
                                 <td>
                                     <?php if ($t['role'] === 'admin'): ?>
                                         <span class="badge badge-gray">👑 Διαχειριστής Συστήματος</span>
@@ -448,11 +443,11 @@ function formatTeacherActivity($seconds, $timestamp) {
                                         <button type="button" class="btn btn-secondary btn-sm" onclick="openPasswordModal(<?= htmlspecialchars(json_encode($t)) ?>)" aria-label="Ορισμός κωδικού" title="Ορισμός νέου κωδικού πρόσβασης">
                                             🔑 Κωδικός
                                         </button>
-                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή αυτού του καθηγητή;');">
+                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Αποχώρηση καθηγητή; Θα ανακληθεί η πρόσβασή του και θα απενεργοποιηθούν οι αναθέσεις του ενεργού έτους. Βαθμοί, απουσίες και ιστορικό διατηρούνται. Για μεταφορά αναθέσεων επιλέξτε πρώτα αντικατάσταση.');">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="teacher_id" value="<?= $t['id'] ?>">
-                                            <button <?= $t['role'] === 'admin' ? 'disabled' : '' ?> type="submit" name="delete_teacher" class="btn btn-danger btn-sm" aria-label="Διαγραφή" title="Διαγραφή">
-                                                🗑️
+                                            <button <?= $t['role'] === 'admin'||$t['status']==='inactive' ? 'disabled' : '' ?> type="submit" name="delete_teacher" class="btn btn-danger btn-sm" aria-label="Αποχώρηση καθηγητή" title="Αποχώρηση και διατήρηση ιστορικού">
+                                                Αποχώρηση
                                             </button>
                                         </form>
                                     </div>
@@ -481,6 +476,7 @@ function formatTeacherActivity($seconds, $timestamp) {
             <div class="form-group" style="margin-bottom:12px;">
                 <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Ονοματεπώνυμο</label>
                 <input type="text" name="name" class="form-control" placeholder="π.χ. Παπαδόπουλος Νικόλαος" required style="font-size:13px;">
+                <?php if($registryReady): ?><label style="display:block;margin-top:10px">ΑΜ καθηγητή (προαιρετικό)<input type="text" name="teacher_registry_number" class="form-control" inputmode="numeric" pattern="[0-9]{1,30}" maxlength="30"></label><?php endif; ?>
             </div>
 
             <div class="form-group" style="margin-bottom:12px;">
@@ -518,7 +514,7 @@ function formatTeacherActivity($seconds, $timestamp) {
                 </div>
                 <div style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; padding:10px; background:var(--bg-main);">
                     <?php if (empty($allSections)): ?>
-                        <div style="font-size:12px; color:var(--text-muted);">Δεν υπάρχουν ακόμη τμήματα. Εισάγετέ τα από την «Εισαγωγή Excel».</div>
+                        <div style="font-size:12px; color:var(--text-muted);">Δεν υπάρχουν ακόμη τμήματα. Εισάγετέ τα από το «Δεδομένα Σχολείου → Εισαγωγή MySchool».</div>
                     <?php else: ?>
                         <?php foreach ($allSectionsByGrade as $gName => $gSecs): ?>
                             <div style="font-weight:700; color:var(--primary); font-size:12px; margin-top:8px; margin-bottom:4px; padding-bottom:2px; border-bottom:1px solid var(--border);">
@@ -558,6 +554,7 @@ function formatTeacherActivity($seconds, $timestamp) {
             <div class="form-group" style="margin-bottom:12px;">
                 <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Ονοματεπώνυμο</label>
                 <input type="text" name="teacher_name" id="modalTeacherInputName" class="form-control" required style="font-size:13px;">
+                <?php if($registryReady): ?><label style="display:block;margin-top:10px">ΑΜ καθηγητή (προαιρετικό)<input type="text" name="teacher_registry_number" id="modalTeacherRegistry" class="form-control" inputmode="numeric" pattern="[0-9]{1,30}" maxlength="30"></label><?php endif; ?>
             </div>
             <div class="form-group" style="margin-bottom:14px;">
                 <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Email Καθηγητή (Σύνδεση &amp; Ειδοποιήσεις)</label>
@@ -705,6 +702,7 @@ function formatTeacherActivity($seconds, $timestamp) {
         document.getElementById('modalTeacherId').value = teacher.id;
         document.getElementById('modalTeacherName').textContent = 'Επεξεργασία: ' + teacher.name;
         document.getElementById('modalTeacherInputName').value = teacher.name;
+        const registryInput=document.getElementById('modalTeacherRegistry');if(registryInput)registryInput.value=teacher.teacher_registry_number||'';
         document.getElementById('modalTeacherInputEmail').value = teacher.email;
         if (document.getElementById('modalTeacherInputRole')) {
             document.getElementById('modalTeacherInputRole').value = teacher.role || 'teacher';
@@ -764,3 +762,4 @@ function formatTeacherActivity($seconds, $timestamp) {
 </script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>
+

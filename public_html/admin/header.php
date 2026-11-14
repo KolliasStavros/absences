@@ -15,7 +15,7 @@ $activeAcademicYear = getActiveAcademicYear();
 require_once __DIR__.'/../includes/school_calendar_reminders.php';
 
 // Restrict system management pages from teacher_admin
-$adminOnlyPages = ['settings.php', 'import.php', 'teachers.php', 'sections.php', 'students.php', 'logs.php', 'maintenance.php', 'technical_errors.php'];
+$adminOnlyPages = ['settings.php', 'import.php', 'myschool_import.php', 'teachers.php', 'sections.php', 'students.php', 'logs.php', 'maintenance.php', 'technical_errors.php'];
 if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
     header("Location: " . BASE_URL . "/admin/index.php");
     exit;
@@ -122,7 +122,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
 
             <?php if (isAdmin()): ?>
                 <?php 
-                    $isSchoolDataActive = in_array($currentPage, ['students.php', 'sections.php', 'teachers.php', 'import.php']);
+                    $isSchoolDataActive = in_array($currentPage, ['students.php', 'sections.php', 'teachers.php', 'import.php', 'myschool_import.php']);
                     $isToolsActive = in_array($currentPage, ['logs.php', 'settings.php', 'help.php', 'maintenance.php', 'technical_errors.php', 'prints.php']);
                 ?>
                 <!-- Dropdown: Δεδομένα Σχολείου -->
@@ -132,6 +132,7 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                         <span class="dropdown-arrow">▾</span>
                     </button>
                     <div class="nav-dropdown-menu">
+                        <a href="myschool_import.php" class="nav-dropdown-item <?= $currentPage === 'myschool_import.php' ? 'active' : '' ?>"><span class="item-icon">📥</span><span class="item-text"><strong>Εισαγωγή MySchool</strong><small>Μαθητές, μητρώο καθηγητών &amp; αναθέσεις</small></span></a>
                         <a href="teachers.php" class="nav-dropdown-item <?= $currentPage === 'teachers.php' ? 'active' : '' ?>">
                             <span class="item-icon">👥</span>
                             <span class="item-text">
@@ -144,13 +145,6 @@ if (isTeacherAdmin() && in_array($currentPage, $adminOnlyPages)) {
                             <span class="item-text">
                                 <strong>Τμήματα &amp; Τάξεις</strong>
                                 <small>Διαχείριση τμημάτων ανά τάξη</small>
-                            </span>
-                        </a>
-                        <a href="import.php" class="nav-dropdown-item <?= $currentPage === 'import.php' ? 'active' : '' ?>">
-                            <span class="item-icon">📥</span>
-                            <span class="item-text">
-                                <strong>Εισαγωγή Excel/CSV</strong>
-                                <small>Μαθητές &amp; καθηγητές myschool</small>
                             </span>
                         </a>
                         <a href="students.php" class="nav-dropdown-item <?= $currentPage === 'students.php' ? 'active' : '' ?>">

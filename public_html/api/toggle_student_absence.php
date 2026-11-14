@@ -369,46 +369,8 @@ try {
         if (!empty($updatedRecords)) {
             require_once __DIR__ . '/../includes/greek_helper.php';
             require_once __DIR__ . '/../includes/mailer.php';
-            $schoolName = getSchoolSetting('school_name', '1ο Γενικό Λύκειο');
-            $schoolPhone = getSchoolSetting('school_phone', '210-1234567');
-            $maskStudentName = (int)getSchoolSetting('mask_student_name', 0);
-            $subjectTemplate = getSchoolSetting('email_template_subject', 'Ενημέρωση Απουσιών Μαθητή - {school_name}');
-            $bodyTemplate = str_replace('{hours}.', '{hours}', getSchoolSetting('email_template_body', defaultAbsenceEmailTemplate()));
-
-            $gender = $stInfo['gender'] ?: 'male';
-            $studentTitle = get_student_title($gender);
-            $studentTitleGen = get_student_title_gen($gender);
-            $studentNoun = get_student_noun($gender);
-            $studentArticle = get_student_article($gender);
-            $studentArticleGen = get_student_article_gen($gender);
-
-            $studentFullName = $stInfo['last_name'] . ' ' . $stInfo['first_name'];
-            $studentGenitive = ($stInfo['last_name_gen'] ?: $stInfo['last_name']) . ' ' . ($stInfo['first_name_gen'] ?: $stInfo['first_name']);
-            if ($maskStudentName) {
-                $studentFullName = mask_student_name($studentFullName);
-                $studentGenitive = mask_student_name($studentGenitive);
-            }
-            $guardianVoc = $stInfo['guardian_name_voc'] ?: ($stInfo['guardian_name'] ? 'κ./κα ' . inflect_word_vocative($stInfo['last_name']) : 'γονέα');
-            $formattedDate = date('d/m/Y', strtotime($date));
-            $hoursText = absenceEmailHours($updatedRecords);
-
-            $replacements = [
-                '{school_name}' => $schoolName,
-                '{school_phone}' => $schoolPhone,
-                '{student_full_name}' => $studentFullName,
-                '{student_genitive}' => $studentGenitive,
-                '{student_title}' => $studentTitle,
-                '{student_title_gen}' => $studentTitleGen,
-                '{student_noun}' => $studentNoun,
-                '{student_article}' => $studentArticle,
-                '{student_article_gen}' => $studentArticleGen,
-                '{guardian_name_voc}' => $guardianVoc,
-                '{date}' => $formattedDate,
-                '{hours}' => $hoursText
-            ];
-
-            $previewData['subject'] = str_replace(array_keys($replacements), array_values($replacements), $subjectTemplate);
-            $previewData['body'] = str_replace(array_keys($replacements), array_values($replacements), $bodyTemplate);
+            require_once __DIR__ . '/../includes/bulk_notification_preview.php';
+            $previewData = array_merge($previewData, buildBulkEmailPreview($stInfo, $updatedRecords, $date));
         }
     }
 

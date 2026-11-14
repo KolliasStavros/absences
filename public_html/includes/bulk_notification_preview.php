@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . "/absence_types.php";
+require_once __DIR__ . "/email_templates.php";
 // Render only: the same template substitutions as consolidated email sending.
 function buildBulkEmailPreview(array $student, array $absences, string $selectedDate): array {
     $schoolName = getSchoolSetting('school_name', 'Παρουσιολόγιο Σχολείου');
@@ -40,8 +41,10 @@ function buildBulkEmailPreview(array $student, array $absences, string $selected
                 '{hours}' => $hoursText
             ];
 
-            $subject = str_replace(array_keys($replacements), array_values($replacements), $subjectTemplate);
-            $message = str_replace(array_keys($replacements), array_values($replacements), $bodyTemplate);
+            $values=[];
+            foreach($replacements as $key=>$value) $values[trim($key,'{}')]=$value;
+            $subject = preg_replace('/[\r\n]+/u',' ',renderSchoolEmailText($subjectTemplate,$values));
+            $message = renderSchoolEmailText($bodyTemplate,$values);
 
     return ['subject'=>$subject, 'body'=>$message];
 }
